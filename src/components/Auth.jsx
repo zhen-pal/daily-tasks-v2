@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { signIn, signUp, signInWithGoogle, resetPassword, getAuthErrorMessage } from '../firebase/authService'
+import { useState, useEffect } from 'react'
+import { signIn, signUp, signInWithGoogle, resetPassword, getAuthErrorMessage, checkGoogleRedirectResult } from '../firebase/authService'
 import HelpModal from './HelpModal'
 
 export default function Auth({ onAuth }) {
@@ -12,6 +12,17 @@ export default function Auth({ onAuth }) {
   const [loading, setLoading] = useState(false)
   const [showReset, setShowReset] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+
+  // Проверка результата входа через Google при загрузке
+  useEffect(() => {
+    const checkRedirect = async () => {
+      const result = await checkGoogleRedirectResult()
+      if (result.success && result.user) {
+        onAuth(result.user)
+      }
+    }
+    checkRedirect()
+  }, [onAuth])
 
   // Валидация имени
   const validateName = (value) => {
@@ -60,11 +71,15 @@ export default function Auth({ onAuth }) {
     setError('')
     setLoading(true)
     const result = await signInWithGoogle()
-    setLoading(false)
     
-    if (result.success && result.user) {
+    if (result.redirect) {
+      // Для мобильных — редирект, страница перезагрузится
+      setLoading(false)
+    } else if (result.success && result.user) {
+      setLoading(false)
       onAuth(result.user)
     } else {
+      setLoading(false)
       setError(getAuthErrorMessage(result.error))
     }
   }
@@ -83,48 +98,6 @@ export default function Auth({ onAuth }) {
     }
   }
 
-  // Компонент поля пароля с глазиком
-  const PasswordField = () => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        🔒 Пароль
-      </label>
-      <div className="relative">
-        <input
-          type={showPassword ? 'text' : 'password'}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
-          required
-          minLength={6}
-          autoComplete={isLogin ? 'current-password' : 'new-password'}
-          className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
-        <button
-          type="button"
-          onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-          title={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-          tabIndex={-1}
-        >
-          {showPassword ? (
-            // Иконка "глаз закрыт"
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-          ) : (
-            // Иконка "глаз открыт"
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          )}
-        </button>
-      </div>
-    </div>
-  )
-
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center p-4">
@@ -132,7 +105,7 @@ export default function Auth({ onAuth }) {
           {/* Кнопка помощи */}
           <button
             onClick={() => setShowHelp(true)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 hover:text-gray-800 transition-colors"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 hover:text-gray-800 transition-colors z-10"
             title="Помощь"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -192,7 +165,42 @@ export default function Auth({ onAuth }) {
                 />
               </div>
 
-              <PasswordField />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🔒 Пароль
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
+                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    title={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
 
               <button
                 type="submit"

@@ -2,13 +2,16 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   updatePassword,
   updateEmail,
   sendPasswordResetEmail,
   onAuthStateChanged,
   updateProfile,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  GoogleAuthProvider
 } from 'firebase/auth'
 import { auth, googleProvider } from './config'
 
@@ -34,8 +37,6 @@ export const checkEmailExists = async (email) => {
     return methods && methods.length > 0
   } catch (error) {
     console.error('Check email error:', error)
-    // Если ошибка — предполагаем, что email существует
-    // (это безопаснее, чем считать, что не существует)
     return true
   }
 }
@@ -48,9 +49,7 @@ export const signIn = async (email, password) => {
   } catch (error) {
     console.error('Sign in error:', error)
     
-    // Если ошибка связана с неверными учётными данными
     if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-      // Проверяем, существует ли email
       const emailExists = await checkEmailExists(email)
       if (!emailExists) {
         return { success: false, error: 'auth/user-not-found' }
@@ -63,13 +62,35 @@ export const signIn = async (email, password) => {
   }
 }
 
-// Вход через Google
+// Вход через Google (используем redirect для мобильных)
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider)
-    return { success: true, user: result.user }
+    // На мобильных устройствах используем redirect вместо popup
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      await signInWithRedirect(auth, googleProvider)
+      return { success: true, redirect: true }
+    } else {
+      const result = await signInWithPopup(auth, googleProvider)
+      return { success: true, user: result.user, redirect: false }
+    }
   } catch (error) {
     console.error('Google sign in error:', error)
+    return { success: false, error: error.code }
+  }
+}
+
+// Проверка результата редиректа (вызывать при загрузке)
+export const checkGoogleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth)
+    if (result) {
+      return { success: true, user: result.user }
+    }
+    return { success: false }
+  } catch (error) {
+    console.error('Redirect result error:', error)
     return { success: false, error: error.code }
   }
 }
@@ -102,7 +123,10 @@ export const getAuthErrorMessage = (errorCode) => {
     'auth/popup-closed-by-user': 'Окно авторизации закрыто',
     'auth/network-request-failed': 'Ошибка сети. Проверьте подключение',
     'auth/too-many-requests': 'Слишком много попыток. Попробуйте позже',
-    'auth/user-disabled': 'Аккаунт заблокирован'
+    'auth/user-disabled': 'Аккаунт заблокирован',
+    'auth/popup-blocked': 'Всплывающее окно заблокировано браузером. Разрешите popup для этого сайта.',
+    'auth/cancelled-popup-request': 'Предыдущий запрос ещё не завершён. Попробуйте ещё раз.',
+    'auth/unauthorized-domain': 'Домен не добавлен в Firebase. Обратитесь к разработчику.'
   }
   return errors[errorCode] || 'Произошла ошибка. Попробуйте ещё раз'
 }
