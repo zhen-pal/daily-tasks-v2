@@ -83,6 +83,20 @@ export const signInWithGoogle = async () => {
   }
 }
 
+// Проверка результата редиректа (для мобильных)
+export const checkGoogleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth)
+    if (result) {
+      return { success: true, user: result.user }
+    }
+    return { success: false }
+  } catch (error) {
+    console.error('Redirect result error:', error)
+    return { success: false, error: error.code }
+  }
+}
+
 // Выход
 export const logOut = async () => {
   await signOut(auth)
