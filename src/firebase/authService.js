@@ -64,13 +64,11 @@ export const signIn = async (email, password) => {
 // Вход через Google
 export const signInWithGoogle = async () => {
   try {
-    // На мобильных устройствах используем redirect
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
     
     if (isMobile) {
       console.log('Mobile detected, using redirect')
       await signInWithRedirect(auth, googleProvider)
-      // После редиректа страница перезагрузится, onAuthChange отследит результат
       return { success: true, redirect: true }
     } else {
       console.log('Desktop detected, using popup')
