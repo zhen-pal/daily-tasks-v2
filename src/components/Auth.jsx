@@ -13,7 +13,7 @@ export default function Auth({ onAuth }) {
   const [showReset, setShowReset] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
 
-  // Проверка результата входа через Google при загрузке
+  // Проверяем результат Google-редиректа при загрузке (для мобильных)
   useEffect(() => {
     const checkRedirect = async () => {
       const result = await checkGoogleRedirectResult()
@@ -38,7 +38,6 @@ export default function Auth({ onAuth }) {
     e.preventDefault()
     setError('')
 
-    // Валидация имени при регистрации
     if (!isLogin) {
       const nameError = validateName(name)
       if (nameError) {
@@ -70,11 +69,13 @@ export default function Auth({ onAuth }) {
   const handleGoogleSignIn = async () => {
     setError('')
     setLoading(true)
+    
     const result = await signInWithGoogle()
     
     if (result.redirect) {
-      // Для мобильных — редирект, страница перезагрузится
-      setLoading(false)
+      // На мобильных — редирект, страница перезагрузится
+      // checkGoogleRedirectResult отследит результат
+      console.log('Redirecting to Google...')
     } else if (result.success && result.user) {
       setLoading(false)
       onAuth(result.user)
@@ -128,7 +129,6 @@ export default function Auth({ onAuth }) {
 
           {!showReset ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Поле имени только при регистрации */}
               {!isLogin && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -152,7 +152,7 @@ export default function Auth({ onAuth }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📧 Email
+                   Email
                 </label>
                 <input
                   type="email"
@@ -304,7 +304,6 @@ export default function Auth({ onAuth }) {
         </div>
       </div>
 
-      {/* Модальное окно помощи */}
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
     </>
   )

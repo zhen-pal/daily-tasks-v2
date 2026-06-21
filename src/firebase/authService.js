@@ -19,7 +19,6 @@ import { auth, googleProvider } from './config'
 export const signUp = async (email, password, displayName) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    // Сохраняем имя пользователя
     if (displayName && userCredential.user) {
       await updateProfile(userCredential.user, { displayName })
     }
@@ -62,35 +61,24 @@ export const signIn = async (email, password) => {
   }
 }
 
-// Вход через Google (используем redirect для мобильных)
+// Вход через Google
 export const signInWithGoogle = async () => {
   try {
-    // На мобильных устройствах используем redirect вместо popup
+    // На мобильных устройствах используем redirect
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
     
     if (isMobile) {
+      console.log('Mobile detected, using redirect')
       await signInWithRedirect(auth, googleProvider)
+      // После редиректа страница перезагрузится, onAuthChange отследит результат
       return { success: true, redirect: true }
     } else {
+      console.log('Desktop detected, using popup')
       const result = await signInWithPopup(auth, googleProvider)
       return { success: true, user: result.user, redirect: false }
     }
   } catch (error) {
     console.error('Google sign in error:', error)
-    return { success: false, error: error.code }
-  }
-}
-
-// Проверка результата редиректа (вызывать при загрузке)
-export const checkGoogleRedirectResult = async () => {
-  try {
-    const result = await getRedirectResult(auth)
-    if (result) {
-      return { success: true, user: result.user }
-    }
-    return { success: false }
-  } catch (error) {
-    console.error('Redirect result error:', error)
     return { success: false, error: error.code }
   }
 }
@@ -124,9 +112,11 @@ export const getAuthErrorMessage = (errorCode) => {
     'auth/network-request-failed': 'Ошибка сети. Проверьте подключение',
     'auth/too-many-requests': 'Слишком много попыток. Попробуйте позже',
     'auth/user-disabled': 'Аккаунт заблокирован',
-    'auth/popup-blocked': 'Всплывающее окно заблокировано браузером. Разрешите popup для этого сайта.',
-    'auth/cancelled-popup-request': 'Предыдущий запрос ещё не завершён. Попробуйте ещё раз.',
-    'auth/unauthorized-domain': 'Домен не добавлен в Firebase. Обратитесь к разработчику.'
+    'auth/popup-blocked': 'Всплывающее окно заблокировано браузером',
+    'auth/cancelled-popup-request': 'Предыдущий запрос ещё не завершён',
+    'auth/unauthorized-domain': 'Домен не авторизован в Firebase',
+    'auth/api-key-not-valid': 'Неверный API ключ Firebase',
+    'auth/operation-not-allowed': 'Операция не разрешена'
   }
   return errors[errorCode] || 'Произошла ошибка. Попробуйте ещё раз'
 }
