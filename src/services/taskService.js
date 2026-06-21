@@ -1,34 +1,80 @@
-// Ключ для хранения в LocalStorage
-const STORAGE_KEY = 'daily_tasks'
+import { 
+  collection, 
+  doc,
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  getDocs
+} from 'firebase/firestore'
+import { db } from '../firebase/config'
 
-// Получить текущую дату в локальном часовом поясе (формат YYYY-MM-DD)
-export function getLocalDate(date = new Date()) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+// Ссылка на коллекцию задач
+const tasksCollection = collection(db, 'tasks')
+
+// Получить задачи на дату (с подпиской на изменения)
+export function subscribeToTasks(userId, date, callback) {
+  const q = query(
+    tasksCollection,
+    where('userId', '==', userId),
+    where('date', '==', date),
+    orderBy('time', 'asc')
+  )
+
+  return onSnapshot(q, (snapshot) => {
+    const tasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    callback(sortTasks(tasks))
+  })
 }
 
-// Получить задачи на дату
-export function getTasks(date) {
+// Получить все задачи пользователя
+export async function getAllTasks(userId) {
+  const q = query(
+    tasksCollection,
+    where('userId', '==', userId)
+  )
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+}
+
+// Добавить задачу
+export async function addTask(task) {
   try {
-    const allTasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-    return allTasks[date] || []
+    await addDoc(tasksCollection, task)
   } catch (error) {
-    console.error('Ошибка чтения из localStorage:', error)
-    return []
+    console.error('Error adding task:', error)
+    throw error
   }
 }
 
-// Сохранить задачи на дату
-export function saveTasks(date, tasks) {
+// Обновить задачу
+export async function updateTask(taskId, updates) {
   try {
-    const allTasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
-    allTasks[date] = tasks
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTasks))
+    const taskRef = doc(db, 'tasks', taskId)
+    await updateDoc(taskRef, updates)
   } catch (error) {
-    console.error('Ошибка записи в localStorage:', error)
-    alert('Не удалось сохранить данные. Возможно, хранилище переполнено.')
+    console.error('Error updating task:', error)
+    throw error
+  }
+}
+
+// Удалить задачу
+export async function deleteTask(taskId) {
+  try {
+    const taskRef = doc(db, 'tasks', taskId)
+    await deleteDoc(taskRef)
+  } catch (error) {
+    console.error('Error deleting task:', error)
+    throw error
   }
 }
 
@@ -55,20 +101,19 @@ export function sortTasks(tasks) {
   })
 }
 
-// Экспорт в CSV (с правильным экранированием)
+// Экспорт в CSV
 export function exportToCSV(tasks, date) {
-  const headers = ['Задача', 'Время', 'Приоритет', 'Статус']
+  const headers = ['Задача', 'Описание', 'Время', 'Приоритет', 'Статус']
   const rows = tasks.map(task => [
     task.text,
+    task.description || '—',
     task.time || '—',
     getPriorityLabel(task.priority),
     getStatusLabel(task.status)
   ])
   
-  // Функция экранирования для CSV
   const escapeCSV = (value) => {
     const str = String(value)
-    // Если есть кавычки, запятые или переносы строк - оборачиваем в кавычки
     if (str.includes('"') || str.includes(',') || str.includes('\n')) {
       return '"' + str.replace(/"/g, '""') + '"'
     }
@@ -93,7 +138,6 @@ export function exportToCSV(tasks, date) {
   URL.revokeObjectURL(url)
 }
 
-// Вспомогательные функции для отображения
 export function getPriorityLabel(priority) {
   const labels = { high: 'Высокий', medium: 'Средний', low: 'Низкий' }
   return labels[priority] || priority
@@ -116,36 +160,4 @@ export function getPriorityColor(priority) {
     low: 'border-success'
   }
   return colors[priority] || 'border-gray-400'
-}
-// Перенос или копирование задачи на другую дату
-export function moveOrCopyTask(task, fromDate, toDate, mode) {
-  // mode: 'move' (перенести) или 'copy' (скопировать)
-  
-  // Получаем задачи на новую дату
-  const targetTasks = getTasks(toDate)
-  
-  // Создаем новую задачу (с новым ID если копируем)
-  const newTask = {
-    ...task,
-    id: mode === 'copy' ? generateNewId() : task.id
-  }
-  
-  // Добавляем задачу на новую дату
-  targetTasks.push(newTask)
-  saveTasks(toDate, targetTasks)
-  
-  // Если переносим - удаляем со старой даты
-  if (mode === 'move' && fromDate !== toDate) {
-    const sourceTasks = getTasks(fromDate)
-    const filteredTasks = sourceTasks.filter(t => t.id !== task.id)
-    saveTasks(fromDate, filteredTasks)
-  }
-}
-
-// Генератор нового ID
-function generateNewId() {
-  if (crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return Date.now().toString(36) + Math.random().toString(36).substr(2)
 }
