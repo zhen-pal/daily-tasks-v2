@@ -64,22 +64,28 @@ export const signIn = async (email, password) => {
 // Вход через Google
 export const signInWithGoogle = async () => {
   try {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    
-    if (isMobile) {
-      console.log('Mobile detected, using redirect')
-      await signInWithRedirect(auth, googleProvider)
-      return { success: true, redirect: true }
-    } else {
-      console.log('Desktop detected, using popup')
-      const result = await signInWithPopup(auth, googleProvider)
-      return { success: true, user: result.user, redirect: false }
-    }
+    // Пробуем popup на всех устройствах
+    console.log('Using popup for Google sign in')
+    const result = await signInWithPopup(auth, googleProvider)
+    return { success: true, user: result.user, redirect: false }
   } catch (error) {
-    console.error('Google sign in error:', error)
+    console.error('Popup failed, trying redirect:', error)
+    
+    // Если popup не сработал (блокировка), пробуем redirect
+    try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      if (isMobile) {
+        await signInWithRedirect(auth, googleProvider)
+        return { success: true, redirect: true }
+      }
+    } catch (redirectError) {
+      console.error('Redirect also failed:', redirectError)
+    }
+    
     return { success: false, error: error.code }
   }
 }
+
 
 // Проверка результата редиректа (для мобильных)
 export const checkGoogleRedirectResult = async () => {
