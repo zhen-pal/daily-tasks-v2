@@ -33,7 +33,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const recognitionRef = useRef(null)
   const lastAddedTextRef = useRef('')
   const processedResultsRef = useRef(new Set())
-  const isProcessingRef = useRef(false)
+  const isStoppingRef = useRef(false)
 
   useEffect(() => {
     if (task) {
@@ -105,10 +105,15 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         setInterimText('')
         processedResultsRef.current.clear()
         
-        if (isListeningRef.current) {
+        // Автоматический перезапуск для продолжения записи
+        if (isListeningRef.current && !isStoppingRef.current) {
           setTimeout(() => {
-            try { recog.start() } catch (e) {}
-          }, 100)
+            try {
+              recog.start()
+            } catch (e) {
+              // Игнорируем ошибки перезапуска
+            }
+          }, 50)
         }
       } else {
         setInterimText(interim)
@@ -118,14 +123,17 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
       if (event.error === 'not-allowed') {
-        alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+        alert('Доступ к микрофону запрещён.')
       }
+      // Сбрасываем состояние при ошибке
+      isStoppingRef.current = false
     }
 
     recog.onend = () => {
-      processedResultsRef.current.clear()
-      lastAddedTextRef.current = ''
+      console.log('🎤 onend')
+      isStoppingRef.current = false
       
+      // Сбрасываем состояние только если запись действительно закончилась
       if (isListeningRef.current) {
         setIsListening(false)
         setListeningField(null)
@@ -133,11 +141,16 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         isListeningRef.current = false
         listeningFieldRef.current = null
       }
+      
+      processedResultsRef.current.clear()
+      lastAddedTextRef.current = ''
     }
 
     recog.onstart = () => {
+      console.log('🎤 onstart')
       processedResultsRef.current.clear()
       lastAddedTextRef.current = ''
+      isStoppingRef.current = false
     }
 
     recognitionRef.current = recog
@@ -148,51 +161,53 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [])
 
-  // ОДНА УНИВЕРСАЛЬНАЯ ПРОЦЕДУРА ДЛЯ ВСЕХ ПОЛЕЙ
+  // МГНОВЕННАЯ ОБРАБОТКА НАЖАТИЯ
   const handleMicClick = (field) => {
-    // Защита от двойного нажатия
-    if (isProcessingRef.current) {
-      console.log('⏳ Обработка, игнорируем')
-      return
-    }
-
-    isProcessingRef.current = true
-    setTimeout(() => {
-      isProcessingRef.current = false
-    }, 100)
-
     const recog = recognitionRef.current
     if (!recog) {
       alert('Голосовой ввод не поддерживается')
       return
     }
 
-    console.log('🎤 Клик для:', field)
+    console.log('🎤 Клик для:', field, 'текущее:', {
+      isListening: isListeningRef.current,
+      listeningField: listeningFieldRef.current,
+      isStopping: isStoppingRef.current
+    })
 
-    // Если это то же поле и запись идёт - останавливаем
+    // Если запись идёт в этом поле — останавливаем
     if (isListeningRef.current && listeningFieldRef.current === field) {
-      console.log('⏹️ Остановка')
+      console.log('⏹️ Остановка записи')
+      isStoppingRef.current = true
       try {
         recog.stop()
       } catch (e) {
         console.error('Ошибка stop:', e)
       }
+      // Сбрасываем состояние немедленно
+      setIsListening(false)
+      setListeningField(null)
+      setInterimText('')
+      isListeningRef.current = false
+      listeningFieldRef.current = null
       return
     }
 
-    // Если запись идёт в другом поле - сначала останавливаем
-    if (isListeningRef.current) {
-      console.log('🔄 Переключение с', listeningFieldRef.current, 'на', field)
+    // Если запись идёт в другом поле — переключаем
+    if (isListeningRef.current && listeningFieldRef.current !== field) {
+      console.log('🔄 Переключение поля')
+      isStoppingRef.current = true
       try { recog.stop() } catch (e) {}
       
-      // Небольшая задержка перед запуском нового
+      // Мгновенный старт в новом поле
       setTimeout(() => {
         startRecording(field)
       }, 100)
-    } else {
-      // Просто начинаем запись
-      startRecording(field)
+      return
     }
+
+    // Начинаем новую запись
+    startRecording(field)
   }
 
   const startRecording = (field) => {
@@ -201,6 +216,13 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     console.log('🎤 Запуск для:', field)
     
+    // Проверяем, не идёт ли уже остановка
+    if (isStoppingRef.current) {
+      console.log('⏳ Ждём остановки...')
+      setTimeout(() => startRecording(field), 150)
+      return
+    }
+
     listeningFieldRef.current = field
     isListeningRef.current = true
     setListeningField(field)
@@ -209,37 +231,37 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     processedResultsRef.current.clear()
     lastAddedTextRef.current = ''
     
-    // Небольшая задержка перед стартом
-    setTimeout(() => {
-      try {
-        recog.start()
-        console.log('✅ Запущено')
-      } catch (error) {
-        console.error('🎤 Ошибка start:', error)
-        // Пробуем ещё раз
-        setTimeout(() => {
-          try {
-            recog.start()
-            console.log('✅ Запущено со второй попытки')
-          } catch (e) {
-            console.error('❌ Не удалось:', e)
-            setIsListening(false)
-            setListeningField(null)
-            isListeningRef.current = false
-            listeningFieldRef.current = null
-          }
-        }, 100)
-      }
-    }, 100)
+    try {
+      recog.start()
+      console.log('✅ Запись начата')
+    } catch (error) {
+      console.error('🎤 Ошибка start:', error)
+      // Пробуем ещё раз через минимальную задержку
+      setTimeout(() => {
+        try {
+          recog.start()
+          console.log('✅ Запись начата со второй попытки')
+        } catch (e) {
+          console.error('❌ Не удалось начать:', e)
+          setIsListening(false)
+          setListeningField(null)
+          isListeningRef.current = false
+          listeningFieldRef.current = null
+          isStoppingRef.current = false
+        }
+      }, 100)
+    }
   }
 
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (isListeningRef.current) {
         console.log('⏹️ Остановка перед сохранением')
+        isStoppingRef.current = true
         try {
           recognitionRef.current.stop()
-          setTimeout(() => resolve(), 500)
+          // Ждём немного
+          setTimeout(() => resolve(), 300)
         } catch (e) {
           resolve()
         }
@@ -297,8 +319,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     try {
       await onSave(taskData)
     } catch (error) {
-      console.error('❌ Ошибка при сохранении:', error)
-      alert('Ошибка при сохранении задачи.')
+      console.error('❌ Ошибка:', error)
+      alert('Ошибка при сохранении.')
     } finally {
       setIsSaving(false)
     }
@@ -306,16 +328,13 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
   const handleTimeChange = (e) => {
     let value = e.target.value.replace(/\D/g, '')
-    
     if (value.length > 4) value = value.slice(0, 4)
     
     if (value.length >= 2) {
       let hours = value.slice(0, 2)
       let minutes = value.slice(2, 4)
-      
       if (parseInt(hours) > 23) hours = '23'
       if (minutes.length === 2 && parseInt(minutes) > 59) minutes = '59'
-      
       value = hours + (minutes ? ':' + minutes : '')
     }
     
@@ -326,7 +345,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const isListeningTitle = isListening && listeningField === 'title'
   const isListeningDesc = isListening && listeningField === 'description'
 
-  // КОМПОНЕНТ КНОПКИ МИКРОФОНА (одинаковый для всех полей)
+  // Компонент кнопки микрофона
   const MicButton = ({ field, isListeningField }) => {
     if (!recognitionReady) return null
 
@@ -344,7 +363,11 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           e.preventDefault()
           e.stopPropagation()
         }}
-        onTouchEnd={handleClick}
+        onTouchEnd={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          handleClick(e)
+        }}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
