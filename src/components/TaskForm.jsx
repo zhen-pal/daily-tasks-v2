@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
@@ -25,8 +25,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
   const [recognition, setRecognition] = useState(null)
-  
-  const currentFieldRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -39,69 +37,109 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [task, currentDate])
 
+  // Функция для обновления поля с распознанным текстом
+  const updateFieldWithTranscript = useCallback((field, transcript) => {
+    console.log('🎤 Updating field:', field, 'with:', transcript)
+    
+    if (field === 'title') {
+      setTitle(prev => {
+        const newValue = prev ? prev + ' ' + transcript : transcript
+        console.log('📝 New title:', newValue)
+        return newValue
+      })
+    } else if (field === 'description') {
+      setDescription(prev => {
+        const newValue = prev ? prev + ' ' + transcript : transcript
+        console.log('📝 New description:', newValue)
+        return newValue
+      })
+    }
+  }, [])
+
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    console.log(' SpeechRecognition available:', !!SpeechRecognition)
+    
     if (SpeechRecognition) {
       const recog = new SpeechRecognition()
       recog.continuous = false
       recog.interimResults = false
       recog.lang = 'ru-RU'
 
+      recog.onstart = () => {
+        console.log('🎤 Recording started')
+      }
+
       recog.onresult = (event) => {
+        console.log('🎤 Result event:', event)
         const transcript = event.results[0][0].transcript
-        const field = currentFieldRef.current
+        console.log('🎤 Transcript:', transcript)
         
-        if (field === 'title') {
-          setTitle(prev => prev ? prev + ' ' + transcript : transcript)
-        } else if (field === 'description') {
-          setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+        // Используем listeningField из state через замыкание
+        const field = listeningField
+        console.log('🎤 Current field:', field)
+        
+        if (field) {
+          updateFieldWithTranscript(field, transcript)
         }
         
         setIsListening(false)
-        currentFieldRef.current = null
+        setListeningField(null)
       }
 
       recog.onerror = (event) => {
-        console.error('Speech recognition error:', event.error)
+        console.error('🎤 Error:', event.error)
         setIsListening(false)
-        currentFieldRef.current = null
+        setListeningField(null)
         if (event.error === 'not-allowed') {
           alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
         }
       }
 
       recog.onend = () => {
+        console.log('🎤 Recording ended')
         setIsListening(false)
-        currentFieldRef.current = null
+        setListeningField(null)
       }
 
       setRecognition(recog)
+      console.log('🎤 Recognition created')
     }
 
     return () => {
       // cleanup не нужен
     }
-  }, [])
+  }, [listeningField, updateFieldWithTranscript])
 
   const startListening = (field) => {
+    console.log('🎤 Starting listening for field:', field)
+    
     if (!recognition) {
+      console.error('🎤 Recognition not available')
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
-    currentFieldRef.current = field
     setListeningField(field)
     setIsListening(true)
-    recognition.start()
+    
+    try {
+      recognition.start()
+      console.log('🎤 Recognition started')
+    } catch (error) {
+      console.error('🎤 Error starting recognition:', error)
+      setIsListening(false)
+      setListeningField(null)
+    }
   }
 
   const stopListening = () => {
+    console.log('🎤 Stopping listening')
     if (recognition) {
       recognition.stop()
     }
     setIsListening(false)
     setListeningField(null)
-    currentFieldRef.current = null
   }
 
   const validateTime = (timeValue) => {
