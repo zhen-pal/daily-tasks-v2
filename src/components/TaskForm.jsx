@@ -24,8 +24,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [timeError, setTimeError] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
+  const [recognition, setRecognition] = useState(null)
   
-  const recognitionRef = useRef(null)
   const currentFieldRef = useRef(null)
 
   useEffect(() => {
@@ -42,12 +42,12 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = false
-      recognition.lang = 'ru-RU'
+      const recog = new SpeechRecognition()
+      recog.continuous = false
+      recog.interimResults = false
+      recog.lang = 'ru-RU'
 
-      recognition.onresult = (event) => {
+      recog.onresult = (event) => {
         const transcript = event.results[0][0].transcript
         const field = currentFieldRef.current
         
@@ -61,7 +61,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         currentFieldRef.current = null
       }
 
-      recognition.onerror = (event) => {
+      recog.onerror = (event) => {
         console.error('Speech recognition error:', event.error)
         setIsListening(false)
         currentFieldRef.current = null
@@ -70,23 +70,21 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         }
       }
 
-      recognition.onend = () => {
+      recog.onend = () => {
         setIsListening(false)
         currentFieldRef.current = null
       }
 
-      recognitionRef.current = recognition
+      setRecognition(recog)
     }
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-      }
+      // cleanup не нужен
     }
   }, [])
 
   const startListening = (field) => {
-    if (!recognitionRef.current) {
+    if (!recognition) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
@@ -94,12 +92,12 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     currentFieldRef.current = field
     setListeningField(field)
     setIsListening(true)
-    recognitionRef.current.start()
+    recognition.start()
   }
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
+    if (recognition) {
+      recognition.stop()
     }
     setIsListening(false)
     setListeningField(null)
@@ -193,7 +191,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognitionRef.current && (
+          {recognition && (
             <button
               type="button"
               onClick={() => isListeningTitle ? stopListening() : startListening('title')}
@@ -229,7 +227,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognitionRef.current && (
+          {recognition && (
             <button
               type="button"
               onClick={() => isListeningDesc ? stopListening() : startListening('description')}
