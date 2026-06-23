@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '⚙️ В работе' },
+  { value: 'in-progress', label: '️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -25,6 +25,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
   const [recognition, setRecognition] = useState(null)
+  
+  // Ref для хранения текущего поля — НЕ пересоздаётся при рендере
+  const activeFieldRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -37,109 +40,90 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [task, currentDate])
 
-  // Функция для обновления поля с распознанным текстом
-  const updateFieldWithTranscript = useCallback((field, transcript) => {
-    console.log('🎤 Updating field:', field, 'with:', transcript)
-    
-    if (field === 'title') {
-      setTitle(prev => {
-        const newValue = prev ? prev + ' ' + transcript : transcript
-        console.log('📝 New title:', newValue)
-        return newValue
-      })
-    } else if (field === 'description') {
-      setDescription(prev => {
-        const newValue = prev ? prev + ' ' + transcript : transcript
-        console.log('📝 New description:', newValue)
-        return newValue
-      })
-    }
-  }, [])
-
+  // Создаём recognition ОДИН РАЗ при монтировании
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    console.log(' SpeechRecognition available:', !!SpeechRecognition)
-    
-    if (SpeechRecognition) {
-      const recog = new SpeechRecognition()
-      recog.continuous = false
-      recog.interimResults = false
-      recog.lang = 'ru-RU'
-
-      recog.onstart = () => {
-        console.log('🎤 Recording started')
-      }
-
-      recog.onresult = (event) => {
-        console.log('🎤 Result event:', event)
-        const transcript = event.results[0][0].transcript
-        console.log('🎤 Transcript:', transcript)
-        
-        // Используем listeningField из state через замыкание
-        const field = listeningField
-        console.log('🎤 Current field:', field)
-        
-        if (field) {
-          updateFieldWithTranscript(field, transcript)
-        }
-        
-        setIsListening(false)
-        setListeningField(null)
-      }
-
-      recog.onerror = (event) => {
-        console.error('🎤 Error:', event.error)
-        setIsListening(false)
-        setListeningField(null)
-        if (event.error === 'not-allowed') {
-          alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
-        }
-      }
-
-      recog.onend = () => {
-        console.log('🎤 Recording ended')
-        setIsListening(false)
-        setListeningField(null)
-      }
-
-      setRecognition(recog)
-      console.log('🎤 Recognition created')
+    if (!SpeechRecognition) {
+      console.log('SpeechRecognition не поддерживается')
+      return
     }
+
+    const recog = new SpeechRecognition()
+    recog.continuous = false
+    recog.interimResults = false
+    recog.lang = 'ru-RU'
+
+    recog.onresult = (event) => {
+      const transcript = event.results[0][0].transcript
+      const field = activeFieldRef.current  // Берём из ref, а не из state
+      
+      console.log('🎤 Transcript:', transcript, 'field:', field)
+      
+      if (field === 'title') {
+        setTitle(prev => prev ? prev + ' ' + transcript : transcript)
+      } else if (field === 'description') {
+        setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+      }
+      
+      setIsListening(false)
+      setListeningField(null)
+      activeFieldRef.current = null
+    }
+
+    recog.onerror = (event) => {
+      console.error('🎤 Error:', event.error)
+      setIsListening(false)
+      setListeningField(null)
+      activeFieldRef.current = null
+      if (event.error === 'not-allowed') {
+        alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+      }
+    }
+
+    recog.onend = () => {
+      setIsListening(false)
+      setListeningField(null)
+      activeFieldRef.current = null
+    }
+
+    setRecognition(recog)
+    console.log(' Recognition создан')
 
     return () => {
-      // cleanup не нужен
+      try { recog.stop() } catch (e) {}
     }
-  }, [listeningField, updateFieldWithTranscript])
+  }, [])  // ← ПУСТОЙ МАССИВ! Создаётся только один раз
 
   const startListening = (field) => {
-    console.log('🎤 Starting listening for field:', field)
-    
     if (!recognition) {
-      console.error('🎤 Recognition not available')
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
+    // Сначала сохраняем в ref (чтобы onresult увидел)
+    activeFieldRef.current = field
+    // Потом в state (для UI)
     setListeningField(field)
     setIsListening(true)
     
     try {
       recognition.start()
-      console.log('🎤 Recognition started')
+      console.log('🎤 Старт записи для:', field)
     } catch (error) {
-      console.error('🎤 Error starting recognition:', error)
+      console.error('🎤 Ошибка start:', error)
       setIsListening(false)
       setListeningField(null)
+      activeFieldRef.current = null
     }
   }
 
   const stopListening = () => {
-    console.log('🎤 Stopping listening')
     if (recognition) {
-      recognition.stop()
+      try { recognition.stop() } catch (e) {}
     }
     setIsListening(false)
     setListeningField(null)
+    activeFieldRef.current = null
   }
 
   const validateTime = (timeValue) => {
@@ -211,7 +195,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-md mb-6">
       <h2 className="text-xl font-bold text-gray-800 mb-4">
-        {task ? '✏️ Редактировать задачу' : '➕ Новая задача'}
+        {task ? '️ Редактировать задачу' : '➕ Новая задача'}
       </h2>
 
       <div className="mb-4">
@@ -276,7 +260,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
               }`}
               title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
             >
-              🎤
+              
             </button>
           )}
         </div>
@@ -368,7 +352,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           type="submit"
           className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
         >
-          💾 Сохранить
+           Сохранить
         </button>
         <button
           type="button"
