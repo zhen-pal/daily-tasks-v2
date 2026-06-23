@@ -2,15 +2,15 @@ import { useState } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '⚙️ В работе' },
+  { value: 'in-progress', label: '️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
 
 const PRIORITY_OPTIONS = [
-  { value: 'high', label: '🔴 Высокий', color: 'bg-priority-high text-red-800' },
-  { value: 'medium', label: '🟡 Средний', color: 'bg-priority-medium text-yellow-800' },
-  { value: 'low', label: '🟢 Низкий', color: 'bg-priority-low text-green-800' }
+  { value: 'high', label: '🔴 Высокий' },
+  { value: 'medium', label: '🟡 Средний' },
+  { value: 'low', label: '🟢 Низкий' }
 ]
 
 export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStatus, onUpdateField }) {
@@ -94,7 +94,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                         setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
                         setOpenPriorityMenu(null)
                       }}
-                      className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700`}
+                      className="px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
                     >
                       {status.label}
                     </button>
@@ -124,7 +124,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                         setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
                         setOpenStatusMenu(null)
                       }}
-                      className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${priority.color}`}
+                      className="px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
                     >
                       {priority.label}
                     </button>

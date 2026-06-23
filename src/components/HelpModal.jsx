@@ -36,15 +36,10 @@ export default function HelpModal({ isOpen, onClose }) {
               <div>
                 <h4 className="font-semibold text-gray-700 mb-2">1. Вход</h4>
                 <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
-                  <li>Нажмите <strong>«Зарегистрироваться»</strong> и введите имя (минимум 3 буквы), email и пароль</li>
+                  <li>Нажмите <strong>«Зарегистрироваться»</strong> и введите имя (минимум 3 буквы), email и пароль. При следующем входе просто введите эти email и пароль.</li>
                   <li>Или нажмите <strong>«Продолжить через Google»</strong> — быстрый вход в один клик</li>
+                  <li>Не помните пароль? Нажмите <strong>«Забыли пароль?»</strong> — придёт письмо — зададите новый</li>
                 </ul>
-                <p className="text-gray-600 ml-4 mt-2">
-                  При следующем входе просто введите email и пароль.
-                </p>
-                <p className="text-gray-600 ml-4 mt-1">
-                  Не помните пароль? Нажмите <strong>«Забыли пароль?»</strong> — придёт письмо — зададите новый
-                </p>
               </div>
               
               <div>
@@ -93,10 +88,10 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-              📅 Перенос задачи
+               Перенос задачи
             </h3>
             <ol className="list-decimal list-inside text-gray-600 space-y-1 ml-4">
-              <li>Откройте задачу (✏️)</li>
+              <li>Откройте задачу (️)</li>
               <li>Измените дату</li>
               <li>Нажмите «Сохранить»</li>
               <li>Выберите: <strong>Перенести</strong> или <strong>Скопировать</strong></li>
@@ -108,7 +103,7 @@ export default function HelpModal({ isOpen, onClose }) {
               📥 Экспорт
             </h3>
             <p className="text-gray-600 ml-4">
-              Нажмите <strong>«📥 Экспорт»</strong> — скачается файл CSV со всеми задачами дня.
+              Нажмите <strong>« Экспорт»</strong> — скачается файл CSV со всеми задачами дня.
             </p>
           </section>
 
