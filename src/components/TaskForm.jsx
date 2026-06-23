@@ -159,7 +159,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     isProcessingRef.current = true
     setTimeout(() => {
       isProcessingRef.current = false
-    }, 600)
+    }, 300)
 
     const recog = recognitionRef.current
     if (!recog) {
