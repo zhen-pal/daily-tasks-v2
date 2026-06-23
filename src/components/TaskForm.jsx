@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '️ В работе' },
+  { value: 'in-progress', label: '⚙️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -26,6 +26,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [listeningField, setListeningField] = useState(null)
   const [interimText, setInterimText] = useState('')
   const [recognitionReady, setRecognitionReady] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const listeningFieldRef = useRef(null)
   const isListeningRef = useRef(false)
@@ -84,7 +85,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recog.onerror = (event) => {
-      console.error(' Error:', event.error)
+      console.error('🎤 Error:', event.error)
       if (event.error === 'not-allowed') {
         alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
       }
@@ -158,6 +159,26 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }
 
+  const stopRecordingIfNeeded = () => {
+    return new Promise((resolve) => {
+      if (isListeningRef.current) {
+        console.log('⏹️ Остановка записи перед сохранением...')
+        try {
+          recognitionRef.current.stop()
+          // Ждём немного чтобы запись успела остановиться
+          setTimeout(() => {
+            resolve()
+          }, 300)
+        } catch (e) {
+          console.error('Ошибка при остановке:', e)
+          resolve()
+        }
+      } else {
+        resolve()
+      }
+    })
+  }
+
   const validateTime = (timeValue) => {
     if (!timeValue) return true
     const match = timeValue.match(/^(\d{2}):(\d{2})$/)
@@ -167,14 +188,18 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setTitleError('')
     setTimeError('')
 
-    if (isListeningRef.current) {
-      try { recognitionRef.current.stop() } catch (e) {}
+    if (isSaving) {
+      console.log('⏳ Уже идёт сохранение, пропускаем')
+      return
     }
+
+    // Останавливаем запись если идёт
+    await stopRecordingIfNeeded()
 
     if (!title.trim()) {
       setTitleError('Введите название задачи')
@@ -185,6 +210,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       setTimeError('Введите время в формате ЧЧ:ММ (например, 14:30)')
       return
     }
+
+    setIsSaving(true)
 
     const taskData = {
       id: task?.id,
@@ -201,7 +228,16 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       taskData.dateChanged = true
     }
 
-    onSave(taskData)
+    try {
+      console.log('💾 Сохранение задачи:', taskData)
+      await onSave(taskData)
+      console.log('✅ Задача сохранена успешно')
+    } catch (error) {
+      console.error('❌ Ошибка при сохранении:', error)
+      alert('Ошибка при сохранении задачи. Попробуйте ещё раз.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleTimeChange = (e) => {
@@ -390,14 +426,25 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       <div className="flex gap-3">
         <button
           type="submit"
-          className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+          disabled={isSaving}
+          className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          💾 Сохранить
+          {isSaving ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Сохранение...
+            </>
+          ) : (
+            <>
+              💾 Сохранить
+            </>
+          )}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+          disabled={isSaving}
+          className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
         >
           Отмена
         </button>
