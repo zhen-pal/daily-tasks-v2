@@ -55,7 +55,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recog.onresult = (event) => {
       const transcript = event.results[0][0].transcript
-      const field = activeFieldRef.current  // Берём из ref, а не из state
+      const field = activeFieldRef.current
       
       console.log('🎤 Transcript:', transcript, 'field:', field)
       
@@ -65,6 +65,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         setDescription(prev => prev ? prev + ' ' + transcript : transcript)
       }
       
+      // Сбрасываем ТОЛЬКО после успешной записи
       setIsListening(false)
       setListeningField(null)
       activeFieldRef.current = null
@@ -72,19 +73,28 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
+      // НЕ сбрасываем ref здесь!
       setIsListening(false)
       setListeningField(null)
-      activeFieldRef.current = null
       if (event.error === 'not-allowed') {
         alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
       }
     }
 
     recog.onend = () => {
+      console.log('🎤 Recording ended')
+      // НЕ сбрасываем ref здесь! onresult вызовется после onend
+      // Просто обновляем UI
       setIsListening(false)
       setListeningField(null)
-      activeFieldRef.current = null
     }
+
+
+
+
+
+
+
 
     setRecognition(recog)
     console.log(' Recognition создан')
