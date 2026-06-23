@@ -31,6 +31,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const listeningFieldRef = useRef(null)
   const isListeningRef = useRef(false)
   const recognitionRef = useRef(null)
+  const lastAddedTextRef = useRef('')
+  const processedResultsRef = useRef(new Set())
 
   useEffect(() => {
     if (task) {
@@ -51,104 +53,123 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     const recog = new SpeechRecognition()
-    recog.continuous = true
+    recog.continuous = false  // ВАЖНО: false чтобы избежать дублирования
     recog.interimResults = true
     recog.lang = 'ru-RU'
+    recog.maxAlternatives = 1
 
-
-
-recog.onresult = (event) => {
+    recog.onresult = (event) => {
       const field = listeningFieldRef.current
       if (!field) {
+        console.log('🎤 onresult: field is null')
         return
       }
 
       let interim = ''
-      let final = ''
+      let finalTranscript = ''
       
-      // Обрабатываем только новые результаты, начиная с resultIndex
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript
-        if (event.results[i].isFinal) {
-          final += transcript
+      // Обрабатываем все результаты
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i]
+        const transcript = result[0].transcript
+        
+        // Создаём уникальный ключ для этого результата
+        const resultKey = `${event.timeStamp}-${i}-${transcript}`
+        
+        // Проверяем, не обрабатывали ли уже этот результат
+        if (processedResultsRef.current.has(resultKey)) {
+          continue
+        }
+        
+        if (result.isFinal) {
+          finalTranscript += transcript
+          // Помечаем как обработанный
+          processedResultsRef.current.add(resultKey)
         } else {
           interim += transcript
         }
       }
       
-      console.log('🎤 onresult:', { field, final, interim, resultIndex: event.resultIndex })
+      console.log('🎤 onresult:', { 
+        field, 
+        finalTranscript, 
+        interim,
+        processedCount: processedResultsRef.current.size 
+      })
       
-      // Добавляем только финальный текст (interim показываем, но не добавляем)
-      if (final) {
+      // Добавляем только финальный текст
+      if (finalTranscript) {
+        const trimmedText = finalTranscript.trim()
+        
+        // Проверяем на дублирование
+        const currentText = field === 'title' ? title : description
+        if (currentText && currentText.trim().endsWith(trimmedText)) {
+          console.log('⚠️ Дубликат, пропускаем:', trimmedText)
+          setInterimText('')
+          return
+        }
+        
+        // Проверяем, не добавляли ли уже этот текст
+        if (lastAddedTextRef.current === trimmedText) {
+          console.log('⚠️ Уже добавлен:', trimmedText)
+          setInterimText('')
+          return
+        }
+        
         if (field === 'title') {
           setTitle(prev => {
-            // Проверяем, не дублируется ли текст
-            const trimmedFinal = final.trim()
-            if (prev && prev.endsWith(trimmedFinal)) {
-              console.log('️ Дубликат обнаружен, пропускаем:', trimmedFinal)
-              return prev
-            }
-            const newValue = prev ? prev + ' ' + trimmedFinal : trimmedFinal
+            const newValue = prev ? prev + ' ' + trimmedText : trimmedText
             console.log('📝 New title:', newValue)
             return newValue
           })
         } else if (field === 'description') {
           setDescription(prev => {
-            const trimmedFinal = final.trim()
-            if (prev && prev.endsWith(trimmedFinal)) {
-              console.log('⚠️ Дубликат обнаружен, пропускаем:', trimmedFinal)
-              return prev
-            }
-            const newValue = prev ? prev + ' ' + trimmedFinal : trimmedFinal
+            const newValue = prev ? prev + ' ' + trimmedText : trimmedText
             console.log('📝 New description:', newValue)
             return newValue
           })
         }
+        
+        // Запоминаем последний добавленный текст
+        lastAddedTextRef.current = trimmedText
+        
+        // Очищаем interim
+        setInterimText('')
+        
+        // Очищаем обработанные результаты для следующего раза
+        processedResultsRef.current.clear()
+        
+        // Перезапускаем recognition для продолжения записи
+        if (isListeningRef.current) {
+          setTimeout(() => {
+            try {
+              recog.start()
+            } catch (e) {
+              console.log('🎤 Не удалось перезапустить:', e)
+            }
+          }, 100)
+        }
+      } else {
+        // Показываем interim текст
+        setInterimText(interim)
       }
-      
-      // Interim текст только для отображения, не добавляем в поле
-      setInterimText(interim)
     }
-
-
- //   recog.onresult = (event) => {
- //     const field = listeningFieldRef.current
- //     if (!field) {
- //       return
- //     }
- //
- //     let interim = ''
- //     let final = ''
- //     
- //     for (let i = event.resultIndex; i < event.results.length; i++) {
- //      const transcript = event.results[i][0].transcript
- //      if (event.results[i].isFinal) {
- //         final += transcript
- //       } else {
- //         interim += transcript
- //       }
- //     }
- //     
- //     if (final) {
- //       if (field === 'title') {
- //         setTitle(prev => prev ? prev + ' ' + final : final)
- //       } else if (field === 'description') {
- //         setDescription(prev => prev ? prev + ' ' + final : final)
- //       }
- //     }
- //     
- //     setInterimText(interim)
- //   }
-
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
       if (event.error === 'not-allowed') {
         alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+      } else if (event.error === 'no-speech') {
+        console.log('🎤 Речь не обнаружена')
       }
     }
 
     recog.onend = () => {
+      console.log('🎤 onend')
+      // Очищаем processed results
+      processedResultsRef.current.clear()
+      lastAddedTextRef.current = ''
+      
       if (isListeningRef.current) {
         setIsListening(false)
         setListeningField(null)
@@ -156,6 +177,12 @@ recog.onresult = (event) => {
         isListeningRef.current = false
         listeningFieldRef.current = null
       }
+    }
+
+    recog.onstart = () => {
+      console.log('🎤 onstart')
+      processedResultsRef.current.clear()
+      lastAddedTextRef.current = ''
     }
 
     recognitionRef.current = recog
@@ -174,15 +201,22 @@ recog.onresult = (event) => {
     }
 
     if (isListeningRef.current && listeningFieldRef.current === field) {
+      // Останавливаем запись
+      console.log('⏹️ Остановка записи')
       try {
         recog.stop()
-      } catch (e) {}
+      } catch (e) {
+        console.error('Ошибка stop:', e)
+      }
+      // onend сам сбросит состояние
     } else {
+      // Если уже идёт запись в другом поле - останавливаем
       if (isListeningRef.current) {
+        console.log('🎤 Остановка предыдущей записи')
         try { recog.stop() } catch (e) {}
         setTimeout(() => {
           startNewRecording(field)
-        }, 200)
+        }, 300)
       } else {
         startNewRecording(field)
       }
@@ -193,20 +227,25 @@ recog.onresult = (event) => {
     const recog = recognitionRef.current
     if (!recog) return
 
+    console.log('🎤 Начало записи для:', field)
+    
     listeningFieldRef.current = field
     isListeningRef.current = true
     setListeningField(field)
     setIsListening(true)
     setInterimText('')
+    processedResultsRef.current.clear()
+    lastAddedTextRef.current = ''
     
     try {
       recog.start()
     } catch (error) {
+      console.error('🎤 Ошибка start:', error)
       try {
         recog.stop()
         setTimeout(() => {
           recog.start()
-        }, 200)
+        }, 300)
       } catch (e) {
         setIsListening(false)
         setListeningField(null)
@@ -222,10 +261,9 @@ recog.onresult = (event) => {
         console.log('⏹️ Остановка записи перед сохранением...')
         try {
           recognitionRef.current.stop()
-          // Ждём немного чтобы запись успела остановиться
           setTimeout(() => {
             resolve()
-          }, 300)
+          }, 500)
         } catch (e) {
           console.error('Ошибка при остановке:', e)
           resolve()
@@ -251,11 +289,10 @@ recog.onresult = (event) => {
     setTimeError('')
 
     if (isSaving) {
-      console.log('⏳ Уже идёт сохранение, пропускаем')
+      console.log('⏳ Уже идёт сохранение')
       return
     }
 
-    // Останавливаем запись если идёт
     await stopRecordingIfNeeded()
 
     if (!title.trim()) {
