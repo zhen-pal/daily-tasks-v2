@@ -159,7 +159,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     isProcessingRef.current = true
     setTimeout(() => {
       isProcessingRef.current = false
-    }, 300)
+    }, 100)
 
     const recog = recognitionRef.current
     if (!recog) {
@@ -188,7 +188,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       // Небольшая задержка перед запуском нового
       setTimeout(() => {
         startRecording(field)
-      }, 300)
+      }, 100)
     } else {
       // Просто начинаем запись
       startRecording(field)
@@ -228,7 +228,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             isListeningRef.current = false
             listeningFieldRef.current = null
           }
-        }, 300)
+        }, 100)
       }
     }, 100)
   }
