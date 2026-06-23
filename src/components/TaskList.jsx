@@ -1,250 +1,194 @@
-import { useState, useEffect } from 'react'
-import { sortTasks, getPriorityLabel, getStatusLabel, getPriorityColor } from '../services/taskService'
+import { useState } from 'react'
+
+const STATUS_OPTIONS = [
+  { value: 'new', label: '🆕 Новое', color: 'bg-blue-100 text-blue-800' },
+  { value: 'in-progress', label: '⚙️ В работе', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'paused', label: '⏸️ На паузе', color: 'bg-gray-100 text-gray-800' },
+  { value: 'completed', label: '✅ Выполнено', color: 'bg-green-100 text-green-800' }
+]
+
+const PRIORITY_OPTIONS = [
+  { value: 'high', label: '🔴 Высокий', color: 'bg-priority-high text-red-800' },
+  { value: 'medium', label: '🟡 Средний', color: 'bg-priority-medium text-yellow-800' },
+  { value: 'low', label: '🟢 Низкий', color: 'bg-priority-low text-green-800' }
+]
 
 export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStatus, onUpdateField }) {
-  const sortedTasks = sortTasks(tasks)
+  const [openStatusMenu, setOpenStatusMenu] = useState(null)
+  const [openPriorityMenu, setOpenPriorityMenu] = useState(null)
 
-  if (sortedTasks.length === 0) {
+  const getStatus = (status) => STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0]
+  const getPriority = (priority) => PRIORITY_OPTIONS.find(p => p.value === priority) || PRIORITY_OPTIONS[1]
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const aHasTime = a.time ? 1 : 0
+    const bHasTime = b.time ? 1 : 0
+    if (aHasTime !== bHasTime) return bHasTime - aHasTime
+    if (a.time && b.time) return a.time.localeCompare(b.time)
+    const priorityOrder = { high: 0, medium: 1, low: 2 }
+    return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1)
+  })
+
+  if (tasks.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
-        <p className="text-lg">📝 Задач на этот день пока нет</p>
-        <p className="text-sm mt-2">Нажмите "Добавить задачу", чтобы начать</p>
+      <div className="text-center py-12 bg-white rounded-xl shadow-sm">
+        <p className="text-6xl mb-4">📝</p>
+        <p className="text-gray-500 text-lg">Задач на этот день нет</p>
+        <p className="text-gray-400 text-sm mt-2">Нажмите "Добавить задачу" чтобы начать</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      {sortedTasks.map(task => (
-        <TaskCard
-          key={task.id}
-          task={task}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onCopy={onCopy}
-          onToggleStatus={onToggleStatus}
-          onUpdateField={onUpdateField}
-        />
-      ))}
-    </div>
-  )
-}
+      {sortedTasks.map(task => {
+        const status = getStatus(task.status)
+        const priority = getPriority(task.priority)
+        const isCompleted = task.status === 'completed'
 
-function TaskCard({ task, onEdit, onDelete, onCopy, onToggleStatus, onUpdateField }) {
-  const isCompleted = task.status === 'completed'
-  const priorityColor = getPriorityColor(task.priority)
-  const [showPriorityMenu, setShowPriorityMenu] = useState(false)
-  const [showStatusMenu, setShowStatusMenu] = useState(false)
-
-  // Закрытие меню при клике вне
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setShowPriorityMenu(false)
-      setShowStatusMenu(false)
-    }
-    setTimeout(() => {
-      document.addEventListener('click', handleClickOutside)
-    }, 0)
-    return () => {
-      document.removeEventListener('click', handleClickOutside)
-    }
-  }, [])
-
-  const handlePriorityChange = (newPriority) => {
-    console.log('Changing priority to:', newPriority, 'for task:', task.id)
-    onUpdateField(task.id, 'priority', newPriority)
-    setShowPriorityMenu(false)
-  }
-
-  const handleStatusChange = (newStatus) => {
-    console.log('Changing status to:', newStatus, 'for task:', task.id)
-    onUpdateField(task.id, 'status', newStatus)
-    setShowStatusMenu(false)
-  }
-
-  return (
-    <div 
-      className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${priorityColor} transition-all hover:shadow-lg ${
-        isCompleted ? 'opacity-60' : ''
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <button
-          onClick={() => {
-            console.log('Toggle status for task:', task.id)
-            onToggleStatus(task.id)
-          }}
-          className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-            isCompleted 
-              ? 'bg-success border-success text-white' 
-              : 'border-gray-300 hover:border-primary'
-          }`}
-          title={isCompleted ? 'Отменить выполнение' : 'Отметить выполненным'}
-        >
-          {isCompleted && '✓'}
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <p className={`font-medium text-gray-800 ${isCompleted ? 'line-through' : ''}`}>
-            {task.text}
-          </p>
-          
-          <div className="flex flex-wrap gap-2 mt-2 text-xs">
-            {task.time && (
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                🕐 {task.time}
-              </span>
-            )}
-            
-            <div className="relative">
+        return (
+          <div
+            key={task.id}
+            className={`bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-all ${
+              isCompleted ? 'opacity-60' : ''
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              {/* Чекбокс */}
               <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setShowStatusMenu(!showStatusMenu)
-                  setShowPriorityMenu(false)
-                }}
-                className="bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
-                title="Нажмите для изменения статуса"
+                onClick={() => onToggleStatus(task.id)}
+                className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  isCompleted 
+                    ? 'bg-green-500 border-green-500' 
+                    : 'border-gray-300 hover:border-primary'
+                }`}
               >
-                {getStatusLabel(task.status)}
+                {isCompleted && (
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </button>
-              {showStatusMenu && (
-                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleStatusChange('new')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    🆕 Новое
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleStatusChange('in_progress')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    ⚙️ В работе
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleStatusChange('paused')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    ⏸️ На паузе
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleStatusChange('completed')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    ✅ Выполнено
-                  </button>
-                </div>
-              )}
-            </div>
 
-            <div className="relative">
-              <button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setShowPriorityMenu(!showPriorityMenu)
-                  setShowStatusMenu(false)
-                }}
-                className="bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
-                title="Нажмите для изменения приоритета"
-              >
-                {getPriorityLabel(task.priority)}
-              </button>
-              {showPriorityMenu && (
-                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px] left-0">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handlePriorityChange('high')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    🔴 Высокий
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handlePriorityChange('medium')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    🟡 Средний
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handlePriorityChange('low')
-                    }}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    🟢 Низкий
-                  </button>
+              {/* Контент */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className={`font-medium text-gray-800 break-words ${isCompleted ? 'line-through' : ''}`}>
+                    {task.title}
+                  </h3>
+                  {task.time && (
+                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
+                      🕐 {task.time}
+                    </span>
+                  )}
                 </div>
-              )}
+
+                {task.description && (
+                  <p className={`text-sm text-gray-600 mb-2 break-words ${isCompleted ? 'line-through' : ''}`}>
+                    {task.description}
+                  </p>
+                )}
+
+                {/* Плашки статуса и приоритета */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  {/* Статус */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
+                        setOpenPriorityMenu(null)
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${status.color}`}
+                    >
+                      {status.label}
+                    </button>
+                    {openStatusMenu === task.id && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
+                        {STATUS_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              onUpdateField(task.id, 'status', option.value)
+                              setOpenStatusMenu(null)
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                              task.status === option.value ? 'bg-gray-100 font-medium' : ''
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Приоритет */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
+                        setOpenStatusMenu(null)
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${priority.color}`}
+                    >
+                      {priority.label}
+                    </button>
+                    {openPriorityMenu === task.id && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
+                        {PRIORITY_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              onUpdateField(task.id, 'priority', option.value)
+                              setOpenPriorityMenu(null)
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                              task.priority === option.value ? 'bg-gray-100 font-medium' : ''
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Кнопки действий */}
+              <div className="flex gap-1 flex-shrink-0">
+                <button
+                  onClick={() => onCopy(task)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Копировать на сегодня"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => onEdit(task)}
+                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  title="Редактировать"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => onDelete(task.id)}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Удалить"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="flex gap-1">
-          <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              console.log('Copy task:', task.id)
-              onCopy(task)
-            }}
-            className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded transition-colors"
-            title="Копировать задачу"
-          >
-            📋
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              console.log('Edit task:', task.id)
-              onEdit(task)
-            }}
-            className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded transition-colors"
-            title="Редактировать"
-          >
-            ✏️
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              console.log('Delete task:', task.id)
-              onDelete(task.id)
-            }}
-            className="p-2 text-gray-600 hover:text-danger hover:bg-gray-100 rounded transition-colors"
-            title="Удалить"
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
+        )
+      })}
     </div>
   )
 }

@@ -8,7 +8,7 @@ export default function HelpModal({ isOpen, onClose }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         {/* Заголовок */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800">📋 Помощь: Мои задачи</h2>
+          <h2 className="text-2xl font-bold text-gray-800">📋 Помощь: еЖЕдневНЯ</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
@@ -58,8 +58,8 @@ export default function HelpModal({ isOpen, onClose }) {
                 <ul className="list-disc list-inside text-gray-600 space-y-1 ml-8">
                   <li><strong>Название</strong> — что сделать (обязательно)</li>
                   <li><strong>Дата</strong> — когда выполнить</li>
-                  <li><strong>Время</strong> — во сколько (необязательно)</li>
-                  <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий</li>
+                  <li><strong>Время</strong> — во сколько в формате ЧЧ:ММ (необязательно, например <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
+                  <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий (пастельные цвета, не отвлекают)</li>
                   <li><strong>Статус</strong> — 🆕 Новое, ⚙️ В работе, ⏸️ На паузе, ✅ Выполнено</li>
                   <li><strong>Описание</strong> — подробности (до 500 символов, необязательно)</li>
                 </ul>
@@ -127,6 +127,7 @@ export default function HelpModal({ isOpen, onClose }) {
               <li>Статус «На паузе» — для важных, но отложенных дел</li>
               <li>Задачи со временем сортируются по часам</li>
               <li>Задачи сортируются по приоритетам (сначала 🔴 Высокий, потом 🟡 Средний, затем 🟢 Низкий)</li>
+              <li>Время удобно вводить пальцами: просто набирайте цифры, двоеточие подставится само (например, <code className="bg-gray-100 px-1 rounded">1430</code> → <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
             </ul>
           </section>
 

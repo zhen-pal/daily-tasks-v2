@@ -236,9 +236,9 @@ function App() {
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              📋 Мои задачи
+              еЖЕдневНЯ
             </h1>
-            <p className="text-gray-600">Организуйте свой день эффективно</p>
+            <p className="text-lg text-gray-600">Мои задачи</p>
           </div>
 
           <DateSelector 
@@ -300,7 +300,6 @@ function App() {
         )}
       </div>
 
-      {/* Модальное окно помощи */}
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
     </>
   )

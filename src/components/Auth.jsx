@@ -13,7 +13,6 @@ export default function Auth({ onAuth }) {
   const [showReset, setShowReset] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
 
-  // Проверяем результат Google-редиректа при загрузке (для мобильных)
   useEffect(() => {
     const checkRedirect = async () => {
       const result = await checkGoogleRedirectResult()
@@ -24,7 +23,6 @@ export default function Auth({ onAuth }) {
     checkRedirect()
   }, [onAuth])
 
-  // Валидация имени
   const validateName = (value) => {
     if (!value) return 'Введите имя'
     if (value.length < 3) return 'Имя должно содержать не менее 3 букв'
@@ -73,8 +71,6 @@ export default function Auth({ onAuth }) {
     const result = await signInWithGoogle()
     
     if (result.redirect) {
-      // На мобильных — редирект, страница перезагрузится
-      // checkGoogleRedirectResult отследит результат
       console.log('Redirecting to Google...')
     } else if (result.success && result.user) {
       setLoading(false)
@@ -103,7 +99,6 @@ export default function Auth({ onAuth }) {
     <>
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative">
-          {/* Кнопка помощи */}
           <button
             onClick={() => setShowHelp(true)}
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 hover:text-gray-800 transition-colors z-10"
@@ -117,8 +112,9 @@ export default function Auth({ onAuth }) {
           </button>
 
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">📋 Мои задачи</h1>
-            <p className="text-gray-600">Организуйте свой день эффективно</p>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">еЖЕдневНЯ</h1>
+            <p className="text-xl text-gray-600 mb-2">Мои задачи</p>
+            <p className="text-sm text-gray-500">Организуйте свой день эффективно</p>
           </div>
 
           {error && (
@@ -152,7 +148,7 @@ export default function Auth({ onAuth }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                   Email
+                  📧 Email
                 </label>
                 <input
                   type="email"
