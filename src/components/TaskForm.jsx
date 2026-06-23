@@ -24,9 +24,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [timeError, setTimeError] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
+  const [interimText, setInterimText] = useState('')
   const [recognition, setRecognition] = useState(null)
-  
-  const activeFieldRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -47,47 +46,50 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     const recog = new SpeechRecognition()
-    recog.continuous = false
-    recog.interimResults = false
+    recog.continuous = true  // Продолжаем слушать до остановки
+    recog.interimResults = true  // Показываем текст во время речи
     recog.lang = 'ru-RU'
 
     recog.onresult = (event) => {
-      const transcript = event.results[0][0].transcript
-      const field = activeFieldRef.current
+      let interim = ''
+      let final = ''
       
-      console.log('🎤 Transcript:', transcript, 'field:', field)
-      
-      if (field === 'title') {
-        setTitle(prev => {
-          const newValue = prev ? prev + ' ' + transcript : transcript
-          console.log('📝 New title:', newValue)
-          return newValue
-        })
-      } else if (field === 'description') {
-        setDescription(prev => {
-          const newValue = prev ? prev + ' ' + transcript : transcript
-          console.log('📝 New description:', newValue)
-          return newValue
-        })
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          final += transcript
+        } else {
+          interim += transcript
+        }
       }
       
-      setIsListening(false)
-      setListeningField(null)
-      activeFieldRef.current = null
+      const field = listeningField
+      
+      if (final) {
+        if (field === 'title') {
+          setTitle(prev => prev ? prev + ' ' + final : final)
+        } else if (field === 'description') {
+          setDescription(prev => prev ? prev + ' ' + final : final)
+        }
+      }
+      
+      if (interim) {
+        setInterimText(interim)
+      } else {
+        setInterimText('')
+      }
     }
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
-      setIsListening(false)
-      setListeningField(null)
-      activeFieldRef.current = null
       if (event.error === 'not-allowed') {
         alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
       }
     }
 
     recog.onend = () => {
-      console.log('🎤 Recording ended')
+      // Не сбрасываем состояние - пользователь сам нажмёт стоп
+      setInterimText('')
     }
 
     setRecognition(recog)
@@ -96,58 +98,53 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     return () => {
       try { recog.stop() } catch (e) {}
     }
-  }, [])
+  }, [listeningField])
 
-  const startListening = (field) => {
+  const toggleListening = (field) => {
     if (!recognition) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
-    if (activeFieldRef.current !== null) {
-      console.log('🎤 Уже идёт запись')
-      return
-    }
-
-    console.log('🎤 Старт записи для:', field)
-    
-    activeFieldRef.current = field
-    setListeningField(field)
-    setIsListening(true)
-    
-    try {
-      recognition.start()
-    } catch (error) {
-      console.error('🎤 Ошибка start:', error)
+    if (isListening && listeningField === field) {
+      // Останавливаем запись
+      console.log('🎤 Остановка записи')
+      recognition.stop()
       setIsListening(false)
       setListeningField(null)
-      activeFieldRef.current = null
-    }
-  }
-
-  const stopListening = () => {
-    if (activeFieldRef.current === null && !isListening) {
-      console.log('🎤 Запись не идёт')
-      return
-    }
-    
-    console.log('🎤 Остановка записи')
-    if (recognition) {
-      try { recognition.stop() } catch (e) {}
-    }
-    setIsListening(false)
-    setListeningField(null)
-    activeFieldRef.current = null
-  }
-
-  const handleMicClick = (field, e) => {
-    e.preventDefault()
-    const isCurrentFieldListening = isListening && listeningField === field
-    
-    if (isCurrentFieldListening) {
-      stopListening()
+      setInterimText('')
     } else {
-      startListening(field)
+      // Начинаем запись
+      console.log('🎤 Начало записи для:', field)
+      
+      // Если уже что-то записывалось, добавляем пробел
+      if (field === 'title' && title) {
+        setTitle(prev => prev + ' ')
+      } else if (field === 'description' && description) {
+        setDescription(prev => prev + ' ')
+      }
+      
+      setListeningField(field)
+      setIsListening(true)
+      setInterimText('')
+      
+      try {
+        recognition.start()
+      } catch (error) {
+        console.error('🎤 Ошибка start:', error)
+        // Пробуем остановить и начать заново
+        try {
+          recognition.stop()
+          setTimeout(() => {
+            setListeningField(field)
+            setIsListening(true)
+            recognition.start()
+          }, 100)
+        } catch (e) {
+          setIsListening(false)
+          setListeningField(null)
+        }
+      }
     }
   }
 
@@ -164,6 +161,14 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     e.preventDefault()
     setTitleError('')
     setTimeError('')
+
+    // Если идёт запись, останавливаем
+    if (isListening) {
+      recognition.stop()
+      setIsListening(false)
+      setListeningField(null)
+      setInterimText('')
+    }
 
     if (!title.trim()) {
       setTitleError('Введите название задачи')
@@ -241,20 +246,22 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           {recognition && (
             <button
               type="button"
-              onMouseDown={(e) => handleMicClick('title', e)}
-              className={`px-4 py-3 rounded-lg transition-colors ${
+              onClick={() => toggleListening('title')}
+              className={`px-4 py-3 rounded-lg transition-all ${
                 isListeningTitle 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               title={isListeningTitle ? 'Остановить запись' : 'Голосовой ввод'}
             >
-              🎤
+              {isListeningTitle ? '⏹️' : '🎤'}
             </button>
           )}
         </div>
         {isListeningTitle && (
-          <p className="text-red-500 text-sm mt-1">Запись сообщения...</p>
+          <p className="text-red-500 text-sm mt-1">
+            Запись... {interimText && `"${interimText}"`}
+          </p>
         )}
         {titleError && !isListeningTitle && (
           <p className="text-red-500 text-sm mt-1">{titleError}</p>
@@ -277,21 +284,23 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           {recognition && (
             <button
               type="button"
-              onMouseDown={(e) => handleMicClick('description', e)}
-              className={`px-4 py-3 rounded-lg transition-colors self-start ${
+              onClick={() => toggleListening('description')}
+              className={`px-4 py-3 rounded-lg transition-all self-start ${
                 isListeningDesc 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
             >
-              🎤
+              {isListeningDesc ? '⏹️' : '🎤'}
             </button>
           )}
         </div>
         <div className="flex justify-between items-start mt-1">
           {isListeningDesc ? (
-            <p className="text-red-500 text-sm">Запись сообщения...</p>
+            <p className="text-red-500 text-sm">
+              Запись... {interimText && `"${interimText}"`}
+            </p>
           ) : (
             <p className="text-xs text-gray-500">
               {description.length}/500 символов
