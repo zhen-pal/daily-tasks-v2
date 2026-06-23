@@ -55,7 +55,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     recog.interimResults = true
     recog.lang = 'ru-RU'
 
-    recog.onresult = (event) => {
+
+
+recog.onresult = (event) => {
       const field = listeningFieldRef.current
       if (!field) {
         return
@@ -64,6 +66,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       let interim = ''
       let final = ''
       
+      // Обрабатываем только новые результаты, начиная с resultIndex
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript
         if (event.results[i].isFinal) {
@@ -73,16 +76,70 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         }
       }
       
+      console.log('🎤 onresult:', { field, final, interim, resultIndex: event.resultIndex })
+      
+      // Добавляем только финальный текст (interim показываем, но не добавляем)
       if (final) {
         if (field === 'title') {
-          setTitle(prev => prev ? prev + ' ' + final : final)
+          setTitle(prev => {
+            // Проверяем, не дублируется ли текст
+            const trimmedFinal = final.trim()
+            if (prev && prev.endsWith(trimmedFinal)) {
+              console.log('️ Дубликат обнаружен, пропускаем:', trimmedFinal)
+              return prev
+            }
+            const newValue = prev ? prev + ' ' + trimmedFinal : trimmedFinal
+            console.log('📝 New title:', newValue)
+            return newValue
+          })
         } else if (field === 'description') {
-          setDescription(prev => prev ? prev + ' ' + final : final)
+          setDescription(prev => {
+            const trimmedFinal = final.trim()
+            if (prev && prev.endsWith(trimmedFinal)) {
+              console.log('⚠️ Дубликат обнаружен, пропускаем:', trimmedFinal)
+              return prev
+            }
+            const newValue = prev ? prev + ' ' + trimmedFinal : trimmedFinal
+            console.log('📝 New description:', newValue)
+            return newValue
+          })
         }
       }
       
+      // Interim текст только для отображения, не добавляем в поле
       setInterimText(interim)
     }
+
+
+ //   recog.onresult = (event) => {
+ //     const field = listeningFieldRef.current
+ //     if (!field) {
+ //       return
+ //     }
+ //
+ //     let interim = ''
+ //     let final = ''
+ //     
+ //     for (let i = event.resultIndex; i < event.results.length; i++) {
+ //      const transcript = event.results[i][0].transcript
+ //      if (event.results[i].isFinal) {
+ //         final += transcript
+ //       } else {
+ //         interim += transcript
+ //       }
+ //     }
+ //     
+ //     if (final) {
+ //       if (field === 'title') {
+ //         setTitle(prev => prev ? prev + ' ' + final : final)
+ //       } else if (field === 'description') {
+ //         setDescription(prev => prev ? prev + ' ' + final : final)
+ //       }
+ //     }
+ //     
+ //     setInterimText(interim)
+ //   }
+
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
