@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
   { value: 'in-progress', label: '⚙️ В работе' },
-  { value: 'paused', label: '⏸️ На паузе' },
+  { value: 'paused', label: '️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
 
@@ -25,7 +25,12 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
   const [interimText, setInterimText] = useState('')
-  const [recognition, setRecognition] = useState(null)
+  const [recognitionReady, setRecognitionReady] = useState(false)
+
+  // Refs для хранения актуальных значений в замыканиях
+  const listeningFieldRef = useRef(null)
+  const isListeningRef = useRef(false)
+  const recognitionRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -38,6 +43,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [task, currentDate])
 
+  // Создаём recognition ОДИН РАЗ при монтировании
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
@@ -46,11 +52,17 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     const recog = new SpeechRecognition()
-    recog.continuous = true  // Продолжаем слушать до остановки
-    recog.interimResults = true  // Показываем текст во время речи
+    recog.continuous = true
+    recog.interimResults = true
     recog.lang = 'ru-RU'
 
     recog.onresult = (event) => {
+      const field = listeningFieldRef.current
+      if (!field) {
+        console.log('🎤 onresult: field is null, игнорируем')
+        return
+      }
+
       let interim = ''
       let final = ''
       
@@ -63,87 +75,119 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         }
       }
       
-      const field = listeningField
+      console.log('🎤 onresult:', { field, final, interim })
       
       if (final) {
         if (field === 'title') {
-          setTitle(prev => prev ? prev + ' ' + final : final)
+          setTitle(prev => {
+            const newValue = prev ? prev + ' ' + final : final
+            console.log('📝 New title:', newValue)
+            return newValue
+          })
         } else if (field === 'description') {
-          setDescription(prev => prev ? prev + ' ' + final : final)
+          setDescription(prev => {
+            const newValue = prev ? prev + ' ' + final : final
+            console.log('📝 New description:', newValue)
+            return newValue
+          })
         }
       }
       
-      if (interim) {
-        setInterimText(interim)
-      } else {
-        setInterimText('')
-      }
+      setInterimText(interim)
     }
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
       if (event.error === 'not-allowed') {
         alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+      } else if (event.error === 'network') {
+        console.log('🎤 Network error - возможно, нет интернета или проблема с сервисом Google')
       }
     }
 
     recog.onend = () => {
-      // Не сбрасываем состояние - пользователь сам нажмёт стоп
-      setInterimText('')
+      console.log('🎤 onend')
+      // Сбрасываем только если запись действительно шла
+      if (isListeningRef.current) {
+        setIsListening(false)
+        setListeningField(null)
+        setInterimText('')
+        isListeningRef.current = false
+        listeningFieldRef.current = null
+      }
     }
 
-    setRecognition(recog)
-    console.log('🎤 Recognition создан')
+    recog.onstart = () => {
+      console.log('🎤 onstart')
+    }
+
+    recognitionRef.current = recog
+    setRecognitionReady(true)
+    console.log('🎤 Recognition создан (один раз)')
 
     return () => {
       try { recog.stop() } catch (e) {}
     }
-  }, [listeningField])
+  }, [])  // ← ПУСТОЙ МАССИВ! Создаётся только один раз
 
   const toggleListening = (field) => {
-    if (!recognition) {
+    const recog = recognitionRef.current
+    if (!recog) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
-    if (isListening && listeningField === field) {
+    if (isListeningRef.current && listeningFieldRef.current === field) {
       // Останавливаем запись
-      console.log('🎤 Остановка записи')
-      recognition.stop()
-      setIsListening(false)
-      setListeningField(null)
-      setInterimText('')
-    } else {
-      // Начинаем запись
-      console.log('🎤 Начало записи для:', field)
-      
-      // Если уже что-то записывалось, добавляем пробел
-      if (field === 'title' && title) {
-        setTitle(prev => prev + ' ')
-      } else if (field === 'description' && description) {
-        setDescription(prev => prev + ' ')
-      }
-      
-      setListeningField(field)
-      setIsListening(true)
-      setInterimText('')
-      
+      console.log(' Остановка записи')
       try {
-        recognition.start()
-      } catch (error) {
-        console.error('🎤 Ошибка start:', error)
-        // Пробуем остановить и начать заново
-        try {
-          recognition.stop()
-          setTimeout(() => {
-            setListeningField(field)
-            setIsListening(true)
-            recognition.start()
-          }, 100)
-        } catch (e) {
-          setIsListening(false)
-          setListeningField(null)
-        }
+        recog.stop()
+      } catch (e) {
+        console.error('Ошибка stop:', e)
+      }
+      // onend сам сбросит состояние
+    } else {
+      // Если уже идёт запись в другом поле - останавливаем
+      if (isListeningRef.current) {
+        console.log('🎤 Остановка предыдущей записи')
+        try { recog.stop() } catch (e) {}
+        // Даём время на остановку
+        setTimeout(() => {
+          startNewRecording(field)
+        }, 200)
+      } else {
+        startNewRecording(field)
+      }
+    }
+  }
+
+  const startNewRecording = (field) => {
+    const recog = recognitionRef.current
+    if (!recog) return
+
+    console.log('🎤 Начало записи для:', field)
+    
+    listeningFieldRef.current = field
+    isListeningRef.current = true
+    setListeningField(field)
+    setIsListening(true)
+    setInterimText('')
+    
+    try {
+      recog.start()
+    } catch (error) {
+      console.error('🎤 Ошибка start:', error)
+      // Если уже идёт запись, останавливаем и пробуем снова
+      try {
+        recog.stop()
+        setTimeout(() => {
+          recog.start()
+        }, 200)
+      } catch (e) {
+        setIsListening(false)
+        setListeningField(null)
+        isListeningRef.current = false
+        listeningFieldRef.current = null
       }
     }
   }
@@ -163,11 +207,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     setTimeError('')
 
     // Если идёт запись, останавливаем
-    if (isListening) {
-      recognition.stop()
-      setIsListening(false)
-      setListeningField(null)
-      setInterimText('')
+    if (isListeningRef.current) {
+      try { recognitionRef.current.stop() } catch (e) {}
     }
 
     if (!title.trim()) {
@@ -243,7 +284,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognition && (
+          {recognitionReady && (
             <button
               type="button"
               onClick={() => toggleListening('title')}
@@ -281,7 +322,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognition && (
+          {recognitionReady && (
             <button
               type="button"
               onClick={() => toggleListening('description')}
@@ -292,7 +333,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
               }`}
               title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
             >
-              {isListeningDesc ? '⏹️' : '🎤'}
+              {isListeningDesc ? '⏹️' : ''}
             </button>
           )}
         </div>
