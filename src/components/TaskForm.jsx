@@ -24,9 +24,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [timeError, setTimeError] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
-  const [recognition, setRecognition] = useState(null)
   
-  const listeningFieldRef = useRef(null)
+  const recognitionRef = useRef(null)
+  const currentFieldRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -42,14 +42,14 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognition) {
-      const recog = new SpeechRecognition()
-      recog.continuous = false
-      recog.interimResults = false
-      recog.lang = 'ru-RU'
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = 'ru-RU'
 
-      recog.onresult = (event) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript
-        const field = listeningFieldRef.current
+        const field = currentFieldRef.current
         
         if (field === 'title') {
           setTitle(prev => prev ? prev + ' ' + transcript : transcript)
@@ -58,53 +58,52 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         }
         
         setIsListening(false)
-        setListeningField(null)
-        listeningFieldRef.current = null
+        currentFieldRef.current = null
       }
 
-      recog.onerror = (event) => {
+      recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error)
         setIsListening(false)
-        setListeningField(null)
-        listeningFieldRef.current = null
+        currentFieldRef.current = null
         if (event.error === 'not-allowed') {
           alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
         }
       }
 
-      recog.onend = () => {
+      recognition.onend = () => {
         setIsListening(false)
-        setListeningField(null)
-        listeningFieldRef.current = null
+        currentFieldRef.current = null
       }
 
-      setRecognition(recog)
+      recognitionRef.current = recognition
     }
 
     return () => {
-      // cleanup не нужен, recognition создаётся один раз
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
     }
   }, [])
 
   const startListening = (field) => {
-    if (!recognition) {
+    if (!recognitionRef.current) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
-    listeningFieldRef.current = field
+    currentFieldRef.current = field
     setListeningField(field)
     setIsListening(true)
-    recognition.start()
+    recognitionRef.current.start()
   }
 
   const stopListening = () => {
-    if (recognition) {
-      recognition.stop()
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
     }
     setIsListening(false)
     setListeningField(null)
-    listeningFieldRef.current = null
+    currentFieldRef.current = null
   }
 
   const validateTime = (timeValue) => {
@@ -170,6 +169,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     setTimeError('')
   }
 
+  const isListeningTitle = isListening && listeningField === 'title'
+  const isListeningDesc = isListening && listeningField === 'description'
+
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-md mb-6">
       <h2 className="text-xl font-bold text-gray-800 mb-4">
@@ -191,22 +193,25 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognition && (
+          {recognitionRef.current && (
             <button
               type="button"
-              onClick={() => isListening && listeningField === 'title' ? stopListening() : startListening('title')}
+              onClick={() => isListeningTitle ? stopListening() : startListening('title')}
               className={`px-4 py-3 rounded-lg transition-colors ${
-                isListening && listeningField === 'title'
+                isListeningTitle 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
-              title={isListening && listeningField === 'title' ? 'Остановить запись' : 'Голосовой ввод'}
+              title={isListeningTitle ? 'Остановить запись' : 'Голосовой ввод'}
             >
               🎤
             </button>
           )}
         </div>
-        {titleError && (
+        {isListeningTitle && (
+          <p className="text-red-500 text-sm mt-1">Запись сообщения...</p>
+        )}
+        {titleError && !isListeningTitle && (
           <p className="text-red-500 text-sm mt-1">{titleError}</p>
         )}
       </div>
@@ -224,24 +229,30 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognition && (
+          {recognitionRef.current && (
             <button
               type="button"
-              onClick={() => isListening && listeningField === 'description' ? stopListening() : startListening('description')}
+              onClick={() => isListeningDesc ? stopListening() : startListening('description')}
               className={`px-4 py-3 rounded-lg transition-colors self-start ${
-                isListening && listeningField === 'description'
+                isListeningDesc 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
-              title={isListening && listeningField === 'description' ? 'Остановить запись' : 'Голосовой ввод'}
+              title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
             >
               🎤
             </button>
           )}
         </div>
-        <p className="text-xs text-gray-500 mt-1">
-          {description.length}/500 символов
-        </p>
+        <div className="flex justify-between items-start mt-1">
+          {isListeningDesc ? (
+            <p className="text-red-500 text-sm">Запись сообщения...</p>
+          ) : (
+            <p className="text-xs text-gray-500">
+              {description.length}/500 символов
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -284,7 +295,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-           Статус
+          📊 Статус
         </label>
         <select
           value={status}
@@ -301,7 +312,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-           Приоритет
+          🎯 Приоритет
         </label>
         <select
           value={priority}
