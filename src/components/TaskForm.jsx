@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
@@ -9,7 +9,7 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
   { value: 'high', label: '🔴 Высокий' },
-  { value: 'medium', label: ' Средний' },
+  { value: 'medium', label: '🟡 Средний' },
   { value: 'low', label: '🟢 Низкий' }
 ]
 
@@ -21,9 +21,11 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [status, setStatus] = useState('new')
   const [priority, setPriority] = useState('medium')
   const [titleError, setTitleError] = useState('')
-  const [isListeningTitle, setIsListeningTitle] = useState(false)
-  const [isListeningDesc, setIsListeningDesc] = useState(false)
-  const [recognition, setRecognition] = useState(null)
+  const [isListening, setIsListening] = useState(false)
+  const [listeningField, setListeningField] = useState(null)
+  
+  const recognitionRef = useRef(null)
+  const listeningFieldRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -39,64 +41,66 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognition) {
-      const recog = new SpeechRecognition()
-      recog.continuous = false
-      recog.interimResults = false
-      recog.lang = 'ru-RU'
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = 'ru-RU'
 
-      recog.onresult = (event) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript
+        const field = listeningFieldRef.current
         
-        if (isListeningTitle) {
+        if (field === 'title') {
           setTitle(prev => prev ? prev + ' ' + transcript : transcript)
-          setIsListeningTitle(false)
-        } else if (isListeningDesc) {
+        } else if (field === 'description') {
           setDescription(prev => prev ? prev + ' ' + transcript : transcript)
-          setIsListeningDesc(false)
         }
+        
+        setIsListening(false)
+        listeningFieldRef.current = null
       }
 
-      recog.onerror = (event) => {
+      recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error)
-        setIsListeningTitle(false)
-        setIsListeningDesc(false)
+        setIsListening(false)
+        listeningFieldRef.current = null
         if (event.error === 'not-allowed') {
           alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
         }
       }
 
-      recog.onend = () => {
-        setIsListeningTitle(false)
-        setIsListeningDesc(false)
+      recognition.onend = () => {
+        setIsListening(false)
+        listeningFieldRef.current = null
       }
 
-      setRecognition(recog)
+      recognitionRef.current = recognition
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
     }
   }, [])
 
   const startListening = (field) => {
-    if (!recognition) {
+    if (!recognitionRef.current) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
-    if (field === 'title') {
-      setIsListeningTitle(true)
-      setIsListeningDesc(false)
-    } else {
-      setIsListeningDesc(true)
-      setIsListeningTitle(false)
-    }
-    
-    recognition.start()
+    listeningFieldRef.current = field
+    setIsListening(true)
+    recognitionRef.current.start()
   }
 
   const stopListening = () => {
-    if (recognition) {
-      recognition.stop()
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
     }
-    setIsListeningTitle(false)
-    setIsListeningDesc(false)
+    setIsListening(false)
+    listeningFieldRef.current = null
   }
 
   const handleSubmit = (e) => {
@@ -167,16 +171,16 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognition && (
+          {recognitionRef.current && (
             <button
               type="button"
-              onClick={() => isListeningTitle ? stopListening() : startListening('title')}
+              onClick={() => isListening && listeningField === 'title' ? stopListening() : startListening('title')}
               className={`px-4 py-3 rounded-lg transition-colors ${
-                isListeningTitle 
+                isListening && listeningField === 'title'
                   ? 'bg-red-500 text-white animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
-              title={isListeningTitle ? 'Остановить запись' : 'Голосовой ввод'}
+              title={isListening && listeningField === 'title' ? 'Остановить запись' : 'Голосовой ввод'}
             >
               🎤
             </button>
@@ -200,16 +204,16 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognition && (
+          {recognitionRef.current && (
             <button
               type="button"
-              onClick={() => isListeningDesc ? stopListening() : startListening('desc')}
+              onClick={() => isListening && listeningField === 'description' ? stopListening() : startListening('description')}
               className={`px-4 py-3 rounded-lg transition-colors self-start ${
-                isListeningDesc 
+                isListening && listeningField === 'description'
                   ? 'bg-red-500 text-white animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
-              title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
+              title={isListening && listeningField === 'description' ? 'Остановить запись' : 'Голосовой ввод'}
             >
               🎤
             </button>
