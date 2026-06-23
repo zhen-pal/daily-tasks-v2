@@ -53,10 +53,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recog.onresult = (event) => {
       const transcript = event.results[0][0].transcript
-      // Пробуем получить поле из ref ИЛИ из state
-      const field = activeFieldRef.current || listeningField
+      const field = activeFieldRef.current
       
-      console.log('🎤 Transcript:', transcript, 'field:', field, 'from ref:', activeFieldRef.current, 'from state:', listeningField)
+      console.log('🎤 Transcript:', transcript, 'field:', field)
       
       if (field === 'title') {
         setTitle(prev => {
@@ -72,30 +71,23 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         })
       }
       
-      // Сбрасываем ТОЛЬКО здесь, после успешной записи
-      setTimeout(() => {
-        setIsListening(false)
-        setListeningField(null)
-        activeFieldRef.current = null
-      }, 100)
+      setIsListening(false)
+      setListeningField(null)
+      activeFieldRef.current = null
     }
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
-      // НЕ сбрасываем ref при ошибке!
       setIsListening(false)
       setListeningField(null)
+      activeFieldRef.current = null
       if (event.error === 'not-allowed') {
         alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
       }
     }
 
     recog.onend = () => {
-      console.log('🎤 Recording ended, но ждём result...')
-      // НЕ сбрасываем ref! onresult может прийти ПОСЛЕ onend
-      // Сбрасываем только UI
-      setIsListening(false)
-      setListeningField(null)
+      console.log('🎤 Recording ended')
     }
 
     setRecognition(recog)
@@ -104,7 +96,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     return () => {
       try { recog.stop() } catch (e) {}
     }
-  }, [])  // Пустой массив - создаётся один раз
+  }, [])
 
   const startListening = (field) => {
     if (!recognition) {
@@ -112,11 +104,14 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       return
     }
 
+    if (activeFieldRef.current !== null) {
+      console.log('🎤 Уже идёт запись')
+      return
+    }
+
     console.log('🎤 Старт записи для:', field)
     
-    // Сначала сохраняем в ref
     activeFieldRef.current = field
-    // Потом в state
     setListeningField(field)
     setIsListening(true)
     
@@ -124,24 +119,18 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       recognition.start()
     } catch (error) {
       console.error('🎤 Ошибка start:', error)
-      // Если уже идёт запись, останавливаем и начинаем заново
-      try {
-        recognition.stop()
-        setTimeout(() => {
-          activeFieldRef.current = field
-          setListeningField(field)
-          setIsListening(true)
-          recognition.start()
-        }, 100)
-      } catch (e) {
-        setIsListening(false)
-        setListeningField(null)
-        activeFieldRef.current = null
-      }
+      setIsListening(false)
+      setListeningField(null)
+      activeFieldRef.current = null
     }
   }
 
   const stopListening = () => {
+    if (activeFieldRef.current === null && !isListening) {
+      console.log('🎤 Запись не идёт')
+      return
+    }
+    
     console.log('🎤 Остановка записи')
     if (recognition) {
       try { recognition.stop() } catch (e) {}
@@ -149,6 +138,17 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     setIsListening(false)
     setListeningField(null)
     activeFieldRef.current = null
+  }
+
+  const handleMicClick = (field, e) => {
+    e.preventDefault()
+    const isCurrentFieldListening = isListening && listeningField === field
+    
+    if (isCurrentFieldListening) {
+      stopListening()
+    } else {
+      startListening(field)
+    }
   }
 
   const validateTime = (timeValue) => {
@@ -241,7 +241,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           {recognition && (
             <button
               type="button"
-              onClick={() => isListeningTitle ? stopListening() : startListening('title')}
+              onMouseDown={(e) => handleMicClick('title', e)}
               className={`px-4 py-3 rounded-lg transition-colors ${
                 isListeningTitle 
                   ? 'bg-red-500 text-white animate-pulse' 
@@ -277,7 +277,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           {recognition && (
             <button
               type="button"
-              onClick={() => isListeningDesc ? stopListening() : startListening('description')}
+              onMouseDown={(e) => handleMicClick('description', e)}
               className={`px-4 py-3 rounded-lg transition-colors self-start ${
                 isListeningDesc 
                   ? 'bg-red-500 text-white animate-pulse' 
