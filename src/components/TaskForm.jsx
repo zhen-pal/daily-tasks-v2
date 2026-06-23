@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '️ В работе' },
+  { value: 'in-progress', label: '⚙️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -26,7 +26,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [listeningField, setListeningField] = useState(null)
   const [recognition, setRecognition] = useState(null)
   
-  // Ref для хранения текущего поля — НЕ пересоздаётся при рендере
   const activeFieldRef = useRef(null)
 
   useEffect(() => {
@@ -40,7 +39,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [task, currentDate])
 
-  // Создаём recognition ОДИН РАЗ при монтировании
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
@@ -55,25 +53,36 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recog.onresult = (event) => {
       const transcript = event.results[0][0].transcript
-      const field = activeFieldRef.current
+      // Пробуем получить поле из ref ИЛИ из state
+      const field = activeFieldRef.current || listeningField
       
-      console.log('🎤 Transcript:', transcript, 'field:', field)
+      console.log('🎤 Transcript:', transcript, 'field:', field, 'from ref:', activeFieldRef.current, 'from state:', listeningField)
       
       if (field === 'title') {
-        setTitle(prev => prev ? prev + ' ' + transcript : transcript)
+        setTitle(prev => {
+          const newValue = prev ? prev + ' ' + transcript : transcript
+          console.log('📝 New title:', newValue)
+          return newValue
+        })
       } else if (field === 'description') {
-        setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+        setDescription(prev => {
+          const newValue = prev ? prev + ' ' + transcript : transcript
+          console.log('📝 New description:', newValue)
+          return newValue
+        })
       }
       
-      // Сбрасываем ТОЛЬКО после успешной записи
-      setIsListening(false)
-      setListeningField(null)
-      activeFieldRef.current = null
+      // Сбрасываем ТОЛЬКО здесь, после успешной записи
+      setTimeout(() => {
+        setIsListening(false)
+        setListeningField(null)
+        activeFieldRef.current = null
+      }, 100)
     }
 
     recog.onerror = (event) => {
       console.error('🎤 Error:', event.error)
-      // НЕ сбрасываем ref здесь!
+      // НЕ сбрасываем ref при ошибке!
       setIsListening(false)
       setListeningField(null)
       if (event.error === 'not-allowed') {
@@ -82,27 +91,20 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recog.onend = () => {
-      console.log('🎤 Recording ended')
-      // НЕ сбрасываем ref здесь! onresult вызовется после onend
-      // Просто обновляем UI
+      console.log('🎤 Recording ended, но ждём result...')
+      // НЕ сбрасываем ref! onresult может прийти ПОСЛЕ onend
+      // Сбрасываем только UI
       setIsListening(false)
       setListeningField(null)
     }
 
-
-
-
-
-
-
-
     setRecognition(recog)
-    console.log(' Recognition создан')
+    console.log('🎤 Recognition создан')
 
     return () => {
       try { recog.stop() } catch (e) {}
     }
-  }, [])  // ← ПУСТОЙ МАССИВ! Создаётся только один раз
+  }, [])  // Пустой массив - создаётся один раз
 
   const startListening = (field) => {
     if (!recognition) {
@@ -110,24 +112,37 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       return
     }
 
-    // Сначала сохраняем в ref (чтобы onresult увидел)
+    console.log('🎤 Старт записи для:', field)
+    
+    // Сначала сохраняем в ref
     activeFieldRef.current = field
-    // Потом в state (для UI)
+    // Потом в state
     setListeningField(field)
     setIsListening(true)
     
     try {
       recognition.start()
-      console.log('🎤 Старт записи для:', field)
     } catch (error) {
       console.error('🎤 Ошибка start:', error)
-      setIsListening(false)
-      setListeningField(null)
-      activeFieldRef.current = null
+      // Если уже идёт запись, останавливаем и начинаем заново
+      try {
+        recognition.stop()
+        setTimeout(() => {
+          activeFieldRef.current = field
+          setListeningField(field)
+          setIsListening(true)
+          recognition.start()
+        }, 100)
+      } catch (e) {
+        setIsListening(false)
+        setListeningField(null)
+        activeFieldRef.current = null
+      }
     }
   }
 
   const stopListening = () => {
+    console.log('🎤 Остановка записи')
     if (recognition) {
       try { recognition.stop() } catch (e) {}
     }
@@ -205,7 +220,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-md mb-6">
       <h2 className="text-xl font-bold text-gray-800 mb-4">
-        {task ? '️ Редактировать задачу' : '➕ Новая задача'}
+        {task ? '✏️ Редактировать задачу' : '➕ Новая задача'}
       </h2>
 
       <div className="mb-4">
@@ -362,7 +377,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           type="submit"
           className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
         >
-           Сохранить
+          💾 Сохранить
         </button>
         <button
           type="button"
