@@ -260,7 +260,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
               }`}
               title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
             >
-              
+              🎤
             </button>
           )}
         </div>
