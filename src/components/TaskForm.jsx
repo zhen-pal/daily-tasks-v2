@@ -21,10 +21,11 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [status, setStatus] = useState('new')
   const [priority, setPriority] = useState('medium')
   const [titleError, setTitleError] = useState('')
+  const [timeError, setTimeError] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [listeningField, setListeningField] = useState(null)
+  const [recognition, setRecognition] = useState(null)
   
-  const recognitionRef = useRef(null)
   const listeningFieldRef = useRef(null)
 
   useEffect(() => {
@@ -41,12 +42,12 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = false
-      recognition.lang = 'ru-RU'
+      const recog = new SpeechRecognition()
+      recog.continuous = false
+      recog.interimResults = false
+      recog.lang = 'ru-RU'
 
-      recognition.onresult = (event) => {
+      recog.onresult = (event) => {
         const transcript = event.results[0][0].transcript
         const field = listeningFieldRef.current
         
@@ -57,58 +58,76 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         }
         
         setIsListening(false)
+        setListeningField(null)
         listeningFieldRef.current = null
       }
 
-      recognition.onerror = (event) => {
+      recog.onerror = (event) => {
         console.error('Speech recognition error:', event.error)
         setIsListening(false)
+        setListeningField(null)
         listeningFieldRef.current = null
         if (event.error === 'not-allowed') {
           alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
         }
       }
 
-      recognition.onend = () => {
+      recog.onend = () => {
         setIsListening(false)
+        setListeningField(null)
         listeningFieldRef.current = null
       }
 
-      recognitionRef.current = recognition
+      setRecognition(recog)
     }
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-      }
+      // cleanup не нужен, recognition создаётся один раз
     }
   }, [])
 
   const startListening = (field) => {
-    if (!recognitionRef.current) {
+    if (!recognition) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
 
     listeningFieldRef.current = field
+    setListeningField(field)
     setIsListening(true)
-    recognitionRef.current.start()
+    recognition.start()
   }
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
+    if (recognition) {
+      recognition.stop()
     }
     setIsListening(false)
+    setListeningField(null)
     listeningFieldRef.current = null
+  }
+
+  const validateTime = (timeValue) => {
+    if (!timeValue) return true
+    const match = timeValue.match(/^(\d{2}):(\d{2})$/)
+    if (!match) return false
+    const hours = parseInt(match[1])
+    const minutes = parseInt(match[2])
+    return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
     setTitleError('')
+    setTimeError('')
 
     if (!title.trim()) {
       setTitleError('Введите название задачи')
+      return
+    }
+
+    if (time && !validateTime(time)) {
+      setTimeError('Введите время в формате ЧЧ:ММ (например, 14:30)')
       return
     }
 
@@ -148,6 +167,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
     
     setTime(value)
+    setTimeError('')
   }
 
   return (
@@ -171,7 +191,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognitionRef.current && (
+          {recognition && (
             <button
               type="button"
               onClick={() => isListening && listeningField === 'title' ? stopListening() : startListening('title')}
@@ -204,7 +224,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognitionRef.current && (
+          {recognition && (
             <button
               type="button"
               onClick={() => isListening && listeningField === 'description' ? stopListening() : startListening('description')}
@@ -249,17 +269,22 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             placeholder="ЧЧ:ММ"
             inputMode="numeric"
             maxLength={5}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-lg"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-lg ${
+              timeError ? 'border-red-300' : 'border-gray-300'
+            }`}
           />
           <p className="text-xs text-gray-500 mt-1">
             Пример: 14:30
           </p>
+          {timeError && (
+            <p className="text-red-500 text-sm mt-1">{timeError}</p>
+          )}
         </div>
       </div>
 
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          📊 Статус
+           Статус
         </label>
         <select
           value={status}
@@ -276,7 +301,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          🎯 Приоритет
+           Приоритет
         </label>
         <select
           value={priority}
