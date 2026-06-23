@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
@@ -23,10 +23,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [titleError, setTitleError] = useState('')
   const [isListeningTitle, setIsListeningTitle] = useState(false)
   const [isListeningDesc, setIsListeningDesc] = useState(false)
-
-  // Поддержка Web Speech API для голосового ввода
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  const recognition = SpeechRecognition ? new SpeechRecognition() : null
+  
+  const recognitionRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -40,41 +38,51 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   }, [task, currentDate])
 
   useEffect(() => {
-    if (!recognition) return
-    
-    recognition.continuous = false
-    recognition.interimResults = false
-    recognition.lang = 'ru-RU'
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = 'ru-RU'
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript
-      
-      if (isListeningTitle) {
-        setTitle(prev => prev ? prev + ' ' + transcript : transcript)
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript
+        
+        if (isListeningTitle) {
+          setTitle(prev => prev ? prev + ' ' + transcript : transcript)
+          setIsListeningTitle(false)
+        } else if (isListeningDesc) {
+          setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+          setIsListeningDesc(false)
+        }
+      }
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error)
         setIsListeningTitle(false)
-      } else if (isListeningDesc) {
-        setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+        setIsListeningDesc(false)
+        if (event.error === 'not-allowed') {
+          alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+        }
+      }
+
+      recognition.onend = () => {
+        setIsListeningTitle(false)
         setIsListeningDesc(false)
       }
+
+      recognitionRef.current = recognition
     }
 
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error)
-      setIsListeningTitle(false)
-      setIsListeningDesc(false)
-      if (event.error === 'not-allowed') {
-        alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
       }
     }
-
-    recognition.onend = () => {
-      setIsListeningTitle(false)
-      setIsListeningDesc(false)
-    }
-  }, [recognition, isListeningTitle, isListeningDesc])
+  }, [isListeningTitle, isListeningDesc])
 
   const startListening = (field) => {
-    if (!recognition) {
+    if (!recognitionRef.current) {
       alert('Голосовой ввод не поддерживается вашим браузером')
       return
     }
@@ -87,12 +95,12 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       setIsListeningTitle(false)
     }
     
-    recognition.start()
+    recognitionRef.current.start()
   }
 
   const stopListening = () => {
-    if (recognition) {
-      recognition.stop()
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
     }
     setIsListeningTitle(false)
     setIsListeningDesc(false)
@@ -125,24 +133,18 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     onSave(taskData)
   }
 
-  // Маска для ввода времени в формате HH:MM
   const handleTimeChange = (e) => {
-    let value = e.target.value.replace(/\D/g, '') // убираем всё кроме цифр
+    let value = e.target.value.replace(/\D/g, '')
     
-    // Ограничиваем 4 цифрами (HHMM)
     if (value.length > 4) {
       value = value.slice(0, 4)
     }
     
-    // Вставляем двоеточие после 2 цифр
     if (value.length >= 2) {
       let hours = value.slice(0, 2)
       let minutes = value.slice(2, 4)
       
-      // Валидация часов
       if (parseInt(hours) > 23) hours = '23'
-      
-      // Валидация минут
       if (minutes.length === 2 && parseInt(minutes) > 59) minutes = '59'
       
       value = hours + (minutes ? ':' + minutes : '')
@@ -157,7 +159,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         {task ? '✏️ Редактировать задачу' : '➕ Новая задача'}
       </h2>
 
-      {/* Название задачи с голосовым вводом */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Что нужно сделать? *
@@ -173,7 +174,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognition && (
+          {recognitionRef.current && (
             <button
               type="button"
               onClick={() => isListeningTitle ? stopListening() : startListening('title')}
@@ -193,10 +194,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         )}
       </div>
 
-      {/* Описание с голосовым вводом */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Описание (необязательно)
+          Описание
         </label>
         <div className="flex gap-2">
           <textarea
@@ -207,7 +207,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognition && (
+          {recognitionRef.current && (
             <button
               type="button"
               onClick={() => isListeningDesc ? stopListening() : startListening('desc')}
@@ -227,7 +227,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </p>
       </div>
 
-      {/* Дата и время в одной строке */}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -244,7 +243,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            🕐 Время (необязательно)
+            🕐 Время
           </label>
           <input
             type="text"
@@ -261,7 +260,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </div>
       </div>
 
-      {/* Статус */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           📊 Статус
@@ -279,7 +277,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </select>
       </div>
 
-      {/* Приоритет */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           🎯 Приоритет
@@ -297,7 +294,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </select>
       </div>
 
-      {/* Кнопки */}
       <div className="flex gap-3">
         <button
           type="submit"

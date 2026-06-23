@@ -1,10 +1,10 @@
 import { useState } from 'react'
 
 const STATUS_OPTIONS = [
-  { value: 'new', label: '🆕 Новое', color: 'bg-blue-100 text-blue-800' },
-  { value: 'in-progress', label: '⚙️ В работе', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'paused', label: '⏸️ На паузе', color: 'bg-gray-100 text-gray-800' },
-  { value: 'completed', label: '✅ Выполнено', color: 'bg-green-100 text-green-800' }
+  { value: 'new', label: '🆕 Новое' },
+  { value: 'in-progress', label: '⚙️ В работе' },
+  { value: 'paused', label: '⏸️ На паузе' },
+  { value: 'completed', label: '✅ Выполнено' }
 ]
 
 const PRIORITY_OPTIONS = [
@@ -54,7 +54,6 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
             }`}
           >
             <div className="flex items-start gap-3">
-              {/* Чекбокс */}
               <button
                 onClick={() => onToggleStatus(task.id)}
                 className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -70,7 +69,6 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                 )}
               </button>
 
-              {/* Контент */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <h3 className={`font-medium text-gray-800 break-words ${isCompleted ? 'line-through' : ''}`}>
@@ -89,16 +87,14 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                   </p>
                 )}
 
-                {/* Плашки статуса и приоритета */}
                 <div className="flex flex-wrap gap-2 items-center">
-                  {/* Статус */}
                   <div className="relative">
                     <button
                       onClick={() => {
                         setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
                         setOpenPriorityMenu(null)
                       }}
-                      className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${status.color}`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700`}
                     >
                       {status.label}
                     </button>
@@ -122,7 +118,6 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                     )}
                   </div>
 
-                  {/* Приоритет */}
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -155,7 +150,6 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                 </div>
               </div>
 
-              {/* Кнопки действий */}
               <div className="flex gap-1 flex-shrink-0">
                 <button
                   onClick={() => onCopy(task)}

@@ -6,7 +6,6 @@ export default function HelpModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-        {/* Заголовок */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">📋 Помощь: еЖЕдневНЯ</h2>
           <button
@@ -17,9 +16,7 @@ export default function HelpModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Контент с прокруткой */}
         <div className="overflow-y-auto p-6 space-y-6">
-          {/* Приватность */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               🔒 Приватность
@@ -31,7 +28,6 @@ export default function HelpModal({ isOpen, onClose }) {
             </div>
           </section>
 
-          {/* Начало работы */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               🚀 Начало работы
@@ -42,9 +38,13 @@ export default function HelpModal({ isOpen, onClose }) {
                 <ul className="list-disc list-inside text-gray-600 space-y-1 ml-4">
                   <li>Нажмите <strong>«Зарегистрироваться»</strong> и введите имя (минимум 3 буквы), email и пароль</li>
                   <li>Или нажмите <strong>«Продолжить через Google»</strong> — быстрый вход в один клик</li>
-                  <li>При следующем входе просто введите email и пароль</li>
-                  <li>Не помните пароль? Нажмите <strong>«Забыли пароль?»</strong> — придёт письмо — зададите новый</li>
                 </ul>
+                <p className="text-gray-600 ml-4 mt-2">
+                  При следующем входе просто введите email и пароль.
+                </p>
+                <p className="text-gray-600 ml-4 mt-1">
+                  Не помните пароль? Нажмите <strong>«Забыли пароль?»</strong> — придёт письмо — зададите новый
+                </p>
               </div>
               
               <div>
@@ -56,18 +56,17 @@ export default function HelpModal({ isOpen, onClose }) {
                 <h4 className="font-semibold text-gray-700 mb-2">3. Добавьте задачу</h4>
                 <p className="text-gray-600 mb-2 ml-4">Нажмите <strong>«➕ Добавить задачу»</strong> и заполните:</p>
                 <ul className="list-disc list-inside text-gray-600 space-y-1 ml-8">
-                  <li><strong>Название</strong> — что сделать (обязательно)</li>
+                  <li><strong>Название</strong> — что сделать</li>
                   <li><strong>Дата</strong> — когда выполнить</li>
-                  <li><strong>Время</strong> — во сколько в формате ЧЧ:ММ (необязательно, например <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
-                  <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий (пастельные цвета, не отвлекают)</li>
+                  <li><strong>Время</strong> — во сколько в формате ЧЧ:ММ (например <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
+                  <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий</li>
                   <li><strong>Статус</strong> — 🆕 Новое, ⚙️ В работе, ⏸️ На паузе, ✅ Выполнено</li>
-                  <li><strong>Описание</strong> — подробности (до 500 символов, необязательно)</li>
+                  <li><strong>Описание</strong> — подробности (до 500 символов)</li>
                 </ul>
               </div>
             </div>
           </section>
 
-          {/* Голосовой ввод */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               🎤 Голосовой ввод
@@ -77,15 +76,14 @@ export default function HelpModal({ isOpen, onClose }) {
             </p>
           </section>
 
-          {/* Быстрые действия */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               ⚡ Быстрые действия
             </h3>
             <p className="text-gray-600 mb-2 ml-4"><strong>В списке задач:</strong></p>
             <ul className="list-disc list-inside text-gray-600 space-y-1 ml-8">
-              <li>Кликните на <strong>статус</strong> (например, «Новое») → выберите другой</li>
-              <li>Кликните на <strong>приоритет</strong> (например, «Средний») → измените</li>
+              <li>Кликните на <strong>статус</strong> → выберите другой</li>
+              <li>Кликните на <strong>приоритет</strong> → измените</li>
               <li>Кликните на <strong>кружок слева</strong> → отметить выполненной</li>
               <li>Нажмите <strong>📋</strong> → скопировать задачу на сегодня</li>
               <li>Нажмите <strong>✏️</strong> → редактировать</li>
@@ -93,7 +91,6 @@ export default function HelpModal({ isOpen, onClose }) {
             </ul>
           </section>
 
-          {/* Перенос задачи */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               📅 Перенос задачи
@@ -102,21 +99,19 @@ export default function HelpModal({ isOpen, onClose }) {
               <li>Откройте задачу (✏️)</li>
               <li>Измените дату</li>
               <li>Нажмите «Сохранить»</li>
-              <li>Выберите: <strong>Перенести</strong> (удалить со старой даты) или <strong>Скопировать</strong> (оставить на обеих)</li>
+              <li>Выберите: <strong>Перенести</strong> или <strong>Скопировать</strong></li>
             </ol>
           </section>
 
-          {/* Экспорт */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               📥 Экспорт
             </h3>
             <p className="text-gray-600 ml-4">
-              Нажмите <strong>«📥 Экспорт»</strong> — скачается файл CSV со всеми задачами дня (откроется в Excel).
+              Нажмите <strong>«📥 Экспорт»</strong> — скачается файл CSV со всеми задачами дня.
             </p>
           </section>
 
-          {/* Советы */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               💡 Советы
@@ -126,12 +121,11 @@ export default function HelpModal({ isOpen, onClose }) {
               <li>Используйте описание для подробностей</li>
               <li>Статус «На паузе» — для важных, но отложенных дел</li>
               <li>Задачи со временем сортируются по часам</li>
-              <li>Задачи сортируются по приоритетам (сначала 🔴 Высокий, потом 🟡 Средний, затем 🟢 Низкий)</li>
-              <li>Время удобно вводить пальцами: просто набирайте цифры, двоеточие подставится само (например, <code className="bg-gray-100 px-1 rounded">1430</code> → <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
+              <li>Задачи сортируются по приоритетам</li>
+              <li>Время удобно вводить: набирайте цифры, двоеточие подставится само</li>
             </ul>
           </section>
 
-          {/* Вопросы */}
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
               ❓ Вопросы?
