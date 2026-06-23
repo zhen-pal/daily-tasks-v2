@@ -27,14 +27,13 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [interimText, setInterimText] = useState('')
   const [recognitionReady, setRecognitionReady] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isProcessingClick, setIsProcessingClick] = useState(false)
 
   const listeningFieldRef = useRef(null)
   const isListeningRef = useRef(false)
   const recognitionRef = useRef(null)
   const lastAddedTextRef = useRef('')
   const processedResultsRef = useRef(new Set())
-  const clickTimeoutRef = useRef(null)
+  const isProcessingRef = useRef(false)
 
   useEffect(() => {
     if (task) {
@@ -62,10 +61,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recog.onresult = (event) => {
       const field = listeningFieldRef.current
-      if (!field) {
-        console.log('🎤 onresult: field is null')
-        return
-      }
+      if (!field) return
 
       let interim = ''
       let finalTranscript = ''
@@ -75,9 +71,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         const transcript = result[0].transcript
         const resultKey = `${event.timeStamp}-${i}-${transcript}`
         
-        if (processedResultsRef.current.has(resultKey)) {
-          continue
-        }
+        if (processedResultsRef.current.has(resultKey)) continue
         
         if (result.isFinal) {
           finalTranscript += transcript
@@ -92,27 +86,19 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         const currentText = field === 'title' ? title : description
         
         if (currentText && currentText.trim().endsWith(trimmedText)) {
-          console.log('⚠️ Дубликат, пропускаем:', trimmedText)
           setInterimText('')
           return
         }
         
         if (lastAddedTextRef.current === trimmedText) {
-          console.log('⚠️ Уже добавлен:', trimmedText)
           setInterimText('')
           return
         }
         
         if (field === 'title') {
-          setTitle(prev => {
-            const newValue = prev ? prev + ' ' + trimmedText : trimmedText
-            return newValue
-          })
+          setTitle(prev => prev ? prev + ' ' + trimmedText : trimmedText)
         } else if (field === 'description') {
-          setDescription(prev => {
-            const newValue = prev ? prev + ' ' + trimmedText : trimmedText
-            return newValue
-          })
+          setDescription(prev => prev ? prev + ' ' + trimmedText : trimmedText)
         }
         
         lastAddedTextRef.current = trimmedText
@@ -121,11 +107,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         
         if (isListeningRef.current) {
           setTimeout(() => {
-            try {
-              recog.start()
-            } catch (e) {
-              console.log('🎤 Не удалось перезапустить:', e)
-            }
+            try { recog.start() } catch (e) {}
           }, 100)
         }
       } else {
@@ -141,7 +123,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recog.onend = () => {
-      console.log('🎤 onend')
       processedResultsRef.current.clear()
       lastAddedTextRef.current = ''
       
@@ -155,7 +136,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recog.onstart = () => {
-      console.log('🎤 onstart')
       processedResultsRef.current.clear()
       lastAddedTextRef.current = ''
     }
@@ -168,70 +148,58 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [])
 
-  const toggleListening = (field, e) => {
-    // Предотвращаем двойное нажатие
-    if (isProcessingClick) {
-      console.log('⏳ Обработка предыдущего нажатия, игнорируем')
+  // ОДНА УНИВЕРСАЛЬНАЯ ПРОЦЕДУРА ДЛЯ ВСЕХ ПОЛЕЙ
+  const handleMicClick = (field) => {
+    // Защита от двойного нажатия
+    if (isProcessingRef.current) {
+      console.log('⏳ Обработка, игнорируем')
       return
     }
 
-    // Очищаем предыдущий таймаут
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current)
-    }
-
-    // Устанавливаем флаг обработки
-    setIsProcessingClick(true)
-    
-    // Сбрасываем флаг через 500ms
-    clickTimeoutRef.current = setTimeout(() => {
-      setIsProcessingClick(false)
-      clickTimeoutRef.current = null
-    }, 500)
+    isProcessingRef.current = true
+    setTimeout(() => {
+      isProcessingRef.current = false
+    }, 600)
 
     const recog = recognitionRef.current
     if (!recog) {
-      alert('Голосовой ввод не поддерживается вашим браузером')
-      setIsProcessingClick(false)
+      alert('Голосовой ввод не поддерживается')
       return
     }
 
-    console.log('🎤 Toggle для:', field, 'текущее состояние:', {
-      isListening: isListeningRef.current,
-      listeningField: listeningFieldRef.current
-    })
+    console.log('🎤 Клик для:', field)
 
+    // Если это то же поле и запись идёт - останавливаем
     if (isListeningRef.current && listeningFieldRef.current === field) {
-      // Останавливаем запись
-      console.log('⏹️ Остановка записи')
+      console.log('⏹️ Остановка')
       try {
         recog.stop()
       } catch (e) {
         console.error('Ошибка stop:', e)
       }
+      return
+    }
+
+    // Если запись идёт в другом поле - сначала останавливаем
+    if (isListeningRef.current) {
+      console.log('🔄 Переключение с', listeningFieldRef.current, 'на', field)
+      try { recog.stop() } catch (e) {}
+      
+      // Небольшая задержка перед запуском нового
+      setTimeout(() => {
+        startRecording(field)
+      }, 300)
     } else {
-      // Если уже идёт запись в другом поле - останавливаем
-      if (isListeningRef.current) {
-        console.log('🎤 Остановка предыдущей записи')
-        try { 
-          recog.stop() 
-        } catch (e) {}
-        
-        // Ждём перед запуском новой записи
-        setTimeout(() => {
-          startNewRecording(field)
-        }, 400)
-      } else {
-        startNewRecording(field)
-      }
+      // Просто начинаем запись
+      startRecording(field)
     }
   }
 
-  const startNewRecording = (field) => {
+  const startRecording = (field) => {
     const recog = recognitionRef.current
     if (!recog) return
 
-    console.log('🎤 Начало записи для:', field)
+    console.log('🎤 Запуск для:', field)
     
     listeningFieldRef.current = field
     isListeningRef.current = true
@@ -241,38 +209,38 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     processedResultsRef.current.clear()
     lastAddedTextRef.current = ''
     
-    try {
-      recog.start()
-      console.log('✅ Запись начата успешно')
-    } catch (error) {
-      console.error('🎤 Ошибка start:', error)
+    // Небольшая задержка перед стартом
+    setTimeout(() => {
       try {
-        recog.stop()
+        recog.start()
+        console.log('✅ Запущено')
+      } catch (error) {
+        console.error('🎤 Ошибка start:', error)
+        // Пробуем ещё раз
         setTimeout(() => {
-          recog.start()
-          console.log('✅ Запись начата после повторной попытки')
-        }, 400)
-      } catch (e) {
-        console.error('❌ Не удалось начать запись:', e)
-        setIsListening(false)
-        setListeningField(null)
-        isListeningRef.current = false
-        listeningFieldRef.current = null
+          try {
+            recog.start()
+            console.log('✅ Запущено со второй попытки')
+          } catch (e) {
+            console.error('❌ Не удалось:', e)
+            setIsListening(false)
+            setListeningField(null)
+            isListeningRef.current = false
+            listeningFieldRef.current = null
+          }
+        }, 300)
       }
-    }
+    }, 100)
   }
 
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (isListeningRef.current) {
-        console.log('⏹️ Остановка записи перед сохранением...')
+        console.log('⏹️ Остановка перед сохранением')
         try {
           recognitionRef.current.stop()
-          setTimeout(() => {
-            resolve()
-          }, 500)
+          setTimeout(() => resolve(), 500)
         } catch (e) {
-          console.error('Ошибка при остановке:', e)
           resolve()
         }
       } else {
@@ -295,10 +263,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     setTitleError('')
     setTimeError('')
 
-    if (isSaving) {
-      console.log('⏳ Уже идёт сохранение')
-      return
-    }
+    if (isSaving) return
 
     await stopRecordingIfNeeded()
 
@@ -330,12 +295,10 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     try {
-      console.log('💾 Сохранение задачи:', taskData)
       await onSave(taskData)
-      console.log('✅ Задача сохранена успешно')
     } catch (error) {
       console.error('❌ Ошибка при сохранении:', error)
-      alert('Ошибка при сохранении задачи. Попробуйте ещё раз.')
+      alert('Ошибка при сохранении задачи.')
     } finally {
       setIsSaving(false)
     }
@@ -344,9 +307,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const handleTimeChange = (e) => {
     let value = e.target.value.replace(/\D/g, '')
     
-    if (value.length > 4) {
-      value = value.slice(0, 4)
-    }
+    if (value.length > 4) value = value.slice(0, 4)
     
     if (value.length >= 2) {
       let hours = value.slice(0, 2)
@@ -364,6 +325,42 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
   const isListeningTitle = isListening && listeningField === 'title'
   const isListeningDesc = isListening && listeningField === 'description'
+
+  // КОМПОНЕНТ КНОПКИ МИКРОФОНА (одинаковый для всех полей)
+  const MicButton = ({ field, isListeningField }) => {
+    if (!recognitionReady) return null
+
+    const handleClick = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      handleMicClick(field)
+    }
+
+    return (
+      <button
+        type="button"
+        onPointerDown={handleClick}
+        onTouchStart={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        onTouchEnd={handleClick}
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        disabled={isSaving}
+        className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all select-none touch-manipulation ${
+          isListeningField 
+            ? 'bg-red-500 text-white animate-pulse' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+        } ${isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        title={isListeningField ? 'Остановить запись' : 'Голосовой ввод'}
+      >
+        {isListeningField ? '⏹️' : '🎤'}
+      </button>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-md mb-6">
@@ -386,31 +383,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             }`}
             autoFocus
           />
-          {recognitionReady && (
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                toggleListening('title', e)
-              }}
-              onTouchStart={(e) => {
-                e.preventDefault()
-                toggleListening('title', e)
-              }}
-              onClick={(e) => {
-                e.preventDefault()
-              }}
-              disabled={isProcessingClick}
-              className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all select-none touch-manipulation ${
-                isListeningTitle 
-                  ? 'bg-red-500 text-white animate-pulse' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
-              } ${isProcessingClick ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              title={isListeningTitle ? 'Остановить запись' : 'Голосовой ввод'}
-            >
-              {isListeningTitle ? '⏹️' : '🎤'}
-            </button>
-          )}
+          <MicButton field="title" isListeningField={isListeningTitle} />
         </div>
         {isListeningTitle && (
           <p className="text-red-500 text-sm mt-1">
@@ -435,31 +408,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             rows={3}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
-          {recognitionReady && (
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                toggleListening('description', e)
-              }}
-              onTouchStart={(e) => {
-                e.preventDefault()
-                toggleListening('description', e)
-              }}
-              onClick={(e) => {
-                e.preventDefault()
-              }}
-              disabled={isProcessingClick}
-              className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all select-none touch-manipulation ${
-                isListeningDesc 
-                  ? 'bg-red-500 text-white animate-pulse' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
-              } ${isProcessingClick ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              title={isListeningDesc ? 'Остановить запись' : 'Голосовой ввод'}
-            >
-              {isListeningDesc ? '⏹️' : '🎤'}
-            </button>
-          )}
+          <MicButton field="description" isListeningField={isListeningDesc} />
         </div>
         <div className="flex justify-between items-start mt-1">
           {isListeningDesc ? (
