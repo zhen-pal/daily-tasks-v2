@@ -9,7 +9,7 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
   { value: 'high', label: '🔴 Высокий' },
-  { value: 'medium', label: ' Средний' },
+  { value: 'medium', label: '🟡 Средний' },
   { value: 'low', label: '🟢 Низкий' }
 ]
 
@@ -39,8 +39,14 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
     )
   }
 
+  // Закрытие меню при клике вне
+  const closeAllMenus = () => {
+    setOpenStatusMenu(null)
+    setOpenPriorityMenu(null)
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" onClick={closeAllMenus}>
       {sortedTasks.map(task => {
         const status = getStatus(task.status)
         const priority = getPriority(task.priority)
@@ -52,10 +58,14 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
             className={`bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-all ${
               isCompleted ? 'opacity-60' : ''
             }`}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
               <button
-                onClick={() => onToggleStatus(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleStatus(task.id)
+                }}
                 className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                   isCompleted 
                     ? 'bg-green-500 border-green-500' 
@@ -76,17 +86,16 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                   </h3>
                   {task.time && (
                     <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
-                       {task.time}
+                      🕐 {task.time}
                     </span>
                   )}
                 </div>
 
-                {/* Описание удалено — плашки стали компактнее */}
-
                 <div className="flex flex-wrap gap-2 items-center">
                   <div className="relative">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
                         setOpenPriorityMenu(null)
                       }}
@@ -99,7 +108,8 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                         {STATUS_OPTIONS.map(option => (
                           <button
                             key={option.value}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation()
                               onUpdateField(task.id, 'status', option.value)
                               setOpenStatusMenu(null)
                             }}
@@ -116,7 +126,8 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
 
                   <div className="relative">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
                         setOpenStatusMenu(null)
                       }}
@@ -129,7 +140,8 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                         {PRIORITY_OPTIONS.map(option => (
                           <button
                             key={option.value}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation()
                               onUpdateField(task.id, 'priority', option.value)
                               setOpenPriorityMenu(null)
                             }}
@@ -148,7 +160,10 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
 
               <div className="flex gap-1 flex-shrink-0">
                 <button
-                  onClick={() => onCopy(task)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onCopy(task)
+                  }}
                   className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   title="Копировать на сегодня"
                 >
@@ -157,7 +172,10 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                   </svg>
                 </button>
                 <button
-                  onClick={() => onEdit(task)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEdit(task)
+                  }}
                   className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                   title="Редактировать"
                 >
@@ -166,7 +184,10 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                   </svg>
                 </button>
                 <button
-                  onClick={() => onDelete(task.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(task.id)
+                  }}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Удалить"
                 >

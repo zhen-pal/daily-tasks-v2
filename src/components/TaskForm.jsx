@@ -32,7 +32,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const lastFinalIndexRef = useRef(0)
   const lastInterimRef = useRef('')
   const pendingFieldRef = useRef(null)
-  const accumulatedTextRef = useRef('')
+  const baseTextRef = useRef('')
 
   useEffect(() => {
     if (task) {
@@ -68,44 +68,43 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       let interim = ''
       let newFinal = ''
 
-      // Обрабатываем ТОЛЬКО новые результаты с lastFinalIndex
+      // Обрабатываем ТОЛЬКО результаты от lastFinalIndex до конца
       for (let i = lastFinalIndexRef.current; i < event.results.length; i++) {
         const result = event.results[i]
         const transcript = result[0].transcript
         
         if (result.isFinal) {
+          // Финальный результат — добавляем и сдвигаем индекс
           newFinal += (newFinal ? ' ' : '') + transcript
           lastFinalIndexRef.current = i + 1
+          console.log('[VoiceInput] Final result:', transcript, 'newIndex:', lastFinalIndexRef.current)
         } else {
+          // Interim результат — только показываем
           interim += (interim ? ' ' : '') + transcript
         }
       }
 
-      console.log('[VoiceInput] Final:', newFinal, '| Interim:', interim, '| Index:', lastFinalIndexRef.current)
+      console.log('[VoiceInput] Total final:', newFinal, '| Interim:', interim)
 
       // Обновляем поле
       if (newFinal || interim) {
         const setter = field === 'title' ? setTitle : setDescription
-        const currentValue = field === 'title' ? title : description
         
         setter(prev => {
-          // Убираем старый interim-хвост
-          let baseText = prev
-          if (lastInterimRef.current && prev.endsWith(lastInterimRef.current)) {
-            baseText = prev.slice(0, -lastInterimRef.current.length).trimEnd()
-          }
+          // Сохраняем базовый текст (без interim)
+          let baseText = baseTextRef.current || prev
           
-          // Добавляем новый финальный текст и interim
-          let newText = baseText
+          // Если есть новый финальный текст — добавляем его к базе
           if (newFinal) {
-            newText = newText ? newText + ' ' + newFinal : newFinal
-          }
-          if (interim) {
-            newText = newText ? newText + ' ' + interim : interim
+            baseText = baseText ? baseText + ' ' + newFinal : newFinal
+            baseTextRef.current = baseText
           }
           
-          console.log('[VoiceInput] Updated text:', newText)
-          return newText.trim()
+          // Добавляем interim (он будет заменён следующим interim или следующим final)
+          const resultText = interim ? baseText + ' ' + interim : baseText
+          console.log('[VoiceInput] Setting text:', resultText)
+          
+          return resultText.trim()
         })
       }
 
@@ -121,15 +120,25 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recog.onstart = () => {
-      console.log('[VoiceInput] State: starting -> listening, field:', listeningFieldRef.current)
+      console.log('[VoiceInput] onstart: field:', listeningFieldRef.current)
       setRecState('listening')
       lastFinalIndexRef.current = 0
       lastInterimRef.current = ''
-      accumulatedTextRef.current = ''
+      // Сохраняем текущий текст как базу
+      const field = listeningFieldRef.current
+      if (field === 'title') {
+        baseTextRef.current = title
+      } else if (field === 'description') {
+        baseTextRef.current = description
+      }
+      console.log('[VoiceInput] Base text saved:', baseTextRef.current)
     }
 
     recog.onend = () => {
       console.log('[VoiceInput] onend, state:', recState)
+      
+      // Очищаем interim
+      lastInterimRef.current = ''
       
       if (pendingFieldRef.current) {
         const next = pendingFieldRef.current
@@ -142,6 +151,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         setRecState('idle')
         setListeningField(null)
         listeningFieldRef.current = null
+        baseTextRef.current = ''
       }
     }
 
@@ -201,7 +211,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       setListeningField(field)
       lastFinalIndexRef.current = 0
       lastInterimRef.current = ''
-      accumulatedTextRef.current = ''
+      baseTextRef.current = ''
       
       try {
         recog.start()
