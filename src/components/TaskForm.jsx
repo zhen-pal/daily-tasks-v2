@@ -9,7 +9,7 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
   { value: 'high', label: '🔴 Высокий' },
-  { value: 'medium', label: ' Средний' },
+  { value: 'medium', label: '🟡 Средний' },
   { value: 'low', label: '🟢 Низкий' }
 ]
 
@@ -24,7 +24,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [timeError, setTimeError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   
-  // FSM: 'idle' | 'starting' | 'listening' | 'stopping'
   const [recState, setRecState] = useState('idle')
   const [listeningField, setListeningField] = useState(null)
 
@@ -33,6 +32,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const lastFinalIndexRef = useRef(0)
   const lastInterimRef = useRef('')
   const pendingFieldRef = useRef(null)
+  const accumulatedTextRef = useRef('')
 
   useEffect(() => {
     if (task) {
@@ -61,44 +61,52 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     recog.onresult = (event) => {
       const field = listeningFieldRef.current
       if (!field) {
-        console.log('[VoiceInput] onresult: field is null, игнорируем')
+        console.log('[VoiceInput] onresult: field is null')
         return
       }
 
       let interim = ''
       let newFinal = ''
 
-      // Обрабатываем только новые результаты с lastFinalIndex
+      // Обрабатываем ТОЛЬКО новые результаты с lastFinalIndex
       for (let i = lastFinalIndexRef.current; i < event.results.length; i++) {
         const result = event.results[i]
         const transcript = result[0].transcript
+        
         if (result.isFinal) {
-          newFinal += transcript
+          newFinal += (newFinal ? ' ' : '') + transcript
           lastFinalIndexRef.current = i + 1
         } else {
-          interim += transcript
+          interim += (interim ? ' ' : '') + transcript
         }
       }
 
-      console.log('[VoiceInput] Final:', newFinal, 'Interim:', interim, 'bufferLen:', lastFinalIndexRef.current)
+      console.log('[VoiceInput] Final:', newFinal, '| Interim:', interim, '| Index:', lastFinalIndexRef.current)
 
-      // Функция обновления поля с правильным инкрементальным парсингом
-      const updateField = (setter, currentValue) => {
+      // Обновляем поле
+      if (newFinal || interim) {
+        const setter = field === 'title' ? setTitle : setDescription
+        const currentValue = field === 'title' ? title : description
+        
         setter(prev => {
-          // Убираем старый interim-хвост, если он был
-          const base = lastInterimRef.current && prev.endsWith(lastInterimRef.current)
-            ? prev.slice(0, -lastInterimRef.current.length).trimEnd()
-            : prev
+          // Убираем старый interim-хвост
+          let baseText = prev
+          if (lastInterimRef.current && prev.endsWith(lastInterimRef.current)) {
+            baseText = prev.slice(0, -lastInterimRef.current.length).trimEnd()
+          }
           
-          const newValue = (base + (newFinal ? ' ' + newFinal : '') + (interim ? ' ' + interim : '')).trim()
-          return newValue
+          // Добавляем новый финальный текст и interim
+          let newText = baseText
+          if (newFinal) {
+            newText = newText ? newText + ' ' + newFinal : newFinal
+          }
+          if (interim) {
+            newText = newText ? newText + ' ' + interim : interim
+          }
+          
+          console.log('[VoiceInput] Updated text:', newText)
+          return newText.trim()
         })
-      }
-
-      if (field === 'title') {
-        updateField(setTitle, title)
-      } else if (field === 'description') {
-        updateField(setDescription, description)
       }
 
       lastInterimRef.current = interim
@@ -107,30 +115,26 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     recog.onerror = (event) => {
       console.error('[VoiceInput] Error:', event.error)
       if (event.error === 'not-allowed') {
-        alert('Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.')
+        alert('Доступ к микрофону запрещён.')
         setRecState('idle')
-      } else if (event.error === 'no-speech') {
-        console.log('[VoiceInput] Речь не обнаружена')
-      } else if (event.error === 'network') {
-        console.log('[VoiceInput] Ошибка сети')
       }
     }
 
     recog.onstart = () => {
-      console.log('[VoiceInput] State transition: starting -> listening, field:', listeningFieldRef.current)
+      console.log('[VoiceInput] State: starting -> listening, field:', listeningFieldRef.current)
       setRecState('listening')
       lastFinalIndexRef.current = 0
       lastInterimRef.current = ''
+      accumulatedTextRef.current = ''
     }
 
     recog.onend = () => {
-      console.log('[VoiceInput] onend, текущее состояние:', recState)
+      console.log('[VoiceInput] onend, state:', recState)
       
       if (pendingFieldRef.current) {
         const next = pendingFieldRef.current
         pendingFieldRef.current = null
-        console.log('[VoiceInput] Переключение на поле:', next)
-        // Микро-задержка для освобождения аудио-потока
+        console.log('[VoiceInput] Switching to field:', next)
         setTimeout(() => {
           handleMicClick(next)
         }, 50)
@@ -143,10 +147,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recognitionRef.current = recog
 
-    // Обработка сворачивания вкладки (iOS Safari)
     const handleVisibility = () => {
       if (document.hidden && recState === 'listening') {
-        console.log('[VoiceInput] Вкладка свёрнута, останавливаем запись')
+        console.log('[VoiceInput] Tab hidden, stopping')
         recognitionRef.current?.stop()
       }
     }
@@ -158,11 +161,10 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [])
 
-  // Машина состояний для обработки кликов
   const handleMicClick = (field) => {
     const recog = recognitionRef.current
     if (!recog) {
-      alert('Голосовой ввод не поддерживается вашим браузером')
+      alert('Голосовой ввод не поддерживается')
       return
     }
 
@@ -170,7 +172,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     // Тап по той же кнопке во время записи → СТОП
     if (recState === 'listening' && listeningFieldRef.current === field) {
-      console.log('[VoiceInput] State transition:', oldState, '-> stopping, field:', field)
+      console.log('[VoiceInput] State:', oldState, '-> stopping, field:', field)
       setRecState('stopping')
       recog.stop()
       return
@@ -178,28 +180,28 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     // Тап по другой кнопке во время записи → ПЕРЕКЛЮЧЕНИЕ
     if (recState === 'listening' && listeningFieldRef.current !== field) {
-      console.log('[VoiceInput] State transition:', oldState, '-> stopping (switch), from:', listeningFieldRef.current, 'to:', field)
+      console.log('[VoiceInput] State:', oldState, '-> stopping (switch), from:', listeningFieldRef.current, 'to:', field)
       setRecState('stopping')
       recog.stop()
-      // Старт в новом поле — после onend
       pendingFieldRef.current = field
       return
     }
 
-    // В состояниях 'starting' и 'stopping' — игнорируем клики (защита от гонок)
+    // В состояниях 'starting' и 'stopping' — игнорируем
     if (recState === 'starting' || recState === 'stopping') {
-      console.log('[VoiceInput] Blocked action: state is', recState)
+      console.log('[VoiceInput] Blocked: state is', recState)
       return
     }
 
     // Тап в idle → СТАРТ
     if (recState === 'idle') {
-      console.log('[VoiceInput] State transition:', oldState, '-> starting, field:', field)
+      console.log('[VoiceInput] State:', oldState, '-> starting, field:', field)
       setRecState('starting')
       listeningFieldRef.current = field
       setListeningField(field)
       lastFinalIndexRef.current = 0
       lastInterimRef.current = ''
+      accumulatedTextRef.current = ''
       
       try {
         recog.start()
@@ -214,10 +216,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (recState === 'listening' || recState === 'starting') {
-        console.log('[VoiceInput] Остановка перед сохранением')
+        console.log('[VoiceInput] Stopping before save')
         try {
           recognitionRef.current?.stop()
-          // Ждём onend
           setTimeout(() => resolve(), 300)
         } catch (e) {
           resolve()
@@ -276,8 +277,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     try {
       await onSave(taskData)
     } catch (error) {
-      console.error('[TaskForm] Ошибка при сохранении:', error)
-      alert('Ошибка при сохранении задачи.')
+      console.error('[TaskForm] Save error:', error)
+      alert('Ошибка при сохранении.')
     } finally {
       setIsSaving(false)
     }
@@ -301,9 +302,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
   const isListeningTitle = recState === 'listening' && listeningField === 'title'
   const isListeningDesc = recState === 'listening' && listeningField === 'description'
-  const isRecording = recState === 'listening' || recState === 'starting'
 
-  // Компонент кнопки микрофона (только onClick)
   const MicButton = ({ field, isListeningField }) => {
     const handleClick = (e) => {
       e.preventDefault()
@@ -323,7 +322,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         } ${(isSaving || recState === 'starting' || recState === 'stopping') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={isListeningField ? 'Остановить запись' : 'Голосовой ввод'}
       >
-        {isListeningField ? '⏹️' : ''}
+        {isListeningField ? '⏹️' : '🎤'}
       </button>
     )
   }
@@ -381,7 +380,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-             Дата
+            📅 Дата
           </label>
           <input
             type="date"
@@ -418,7 +417,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-           Статус
+          📊 Статус
         </label>
         <select
           value={status}
@@ -435,7 +434,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-           Приоритет
+          🎯 Приоритет
         </label>
         <select
           value={priority}

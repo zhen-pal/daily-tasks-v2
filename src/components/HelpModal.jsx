@@ -7,7 +7,7 @@ export default function HelpModal({ isOpen, onClose }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800">📋 Помощь: еЖЕдневНЯ</h2>
+          <h2 className="text-2xl font-bold text-gray-800">📋 еЖЕдневНЯ - Мои задачи</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
@@ -54,7 +54,7 @@ export default function HelpModal({ isOpen, onClose }) {
                   <li><strong>Название</strong> — что сделать</li>
                   <li><strong>Дата</strong> — когда выполнить</li>
                   <li><strong>Время</strong> — во сколько в формате ЧЧ:ММ (например <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
-                  <li><strong>Приоритет</strong> —  Высокий, 🟡 Средний,  Низкий</li>
+                  <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий</li>
                   <li><strong>Статус</strong> — 🆕 Новое, ⚙️ В работе, ⏸️ На паузе, ✅ Выполнено</li>
                   <li><strong>Описание</strong> — подробности (до 500 символов)</li>
                 </ul>
@@ -68,15 +68,15 @@ export default function HelpModal({ isOpen, onClose }) {
             </h3>
             <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded space-y-2">
               <p className="text-gray-700">
-                Нажмите <strong></strong> рядом с полем ввода — начнётся запись. Текст будет появляться прямо в поле по мере того, как вы говорите.
+                Нажмите 🎤 рядом с полем ввода — начнётся запись. Текст будет появляться прямо в поле по мере того, как вы говорите.
               </p>
               <p className="text-gray-700">
-                Нажмите <strong>️</strong> (та же кнопка) — запись остановится.
+                Нажмите ⏹️ (та же кнопка) — запись остановится.
               </p>
               <ul className="list-disc list-inside text-gray-600 ml-4 mt-2 space-y-1">
                 <li>Работает в названии и описании задачи</li>
                 <li>Во время записи поле описания временно блокируется для редактирования руками</li>
-                <li>Можно переключаться между полями во время записии — запись автоматически продолжится в новом поле</li>
+                <li>Можно переключаться между полями во время записи — запись автоматически продолжится в новом поле</li>
               </ul>
             </div>
           </section>
@@ -98,7 +98,7 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-               Перенос задачи
+              📅 Перенос задачи
             </h3>
             <ol className="list-decimal list-inside text-gray-600 space-y-1 ml-4">
               <li>Откройте задачу (✏️)</li>
@@ -110,7 +110,7 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-               Экспорт
+              📥 Экспорт
             </h3>
             <p className="text-gray-600 ml-4">
               Нажмите <strong>«📥 Экспорт»</strong> — скачается файл CSV со всеми задачами дня.
