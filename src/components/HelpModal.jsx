@@ -54,7 +54,7 @@ export default function HelpModal({ isOpen, onClose }) {
                   <li><strong>Название</strong> — что сделать</li>
                   <li><strong>Дата</strong> — когда выполнить</li>
                   <li><strong>Время</strong> — во сколько в формате ЧЧ:ММ (например <code className="bg-gray-100 px-1 rounded">14:30</code>)</li>
-                  <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий</li>
+                  <li><strong>Приоритет</strong> —  Высокий, 🟡 Средний,  Низкий</li>
                   <li><strong>Статус</strong> — 🆕 Новое, ⚙️ В работе, ⏸️ На паузе, ✅ Выполнено</li>
                   <li><strong>Описание</strong> — подробности (до 500 символов)</li>
                 </ul>
@@ -67,11 +67,23 @@ export default function HelpModal({ isOpen, onClose }) {
               🎤 Голосовой ввод
             </h3>
             <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded space-y-2">
-              <p className="text-gray-700">
-                Нажмите 🎤 рядом с полем ввода — начнётся запись. Текст будет появляться прямо в поле по мере того, как вы говорите.
+              <p className="text-gray-700 flex items-start gap-2 flex-wrap">
+                <span>Нажмите</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block flex-shrink-0">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+                <span>рядом с полем ввода — начнётся запись. Текст будет появляться прямо в поле по мере того, как вы говорите.</span>
               </p>
-              <p className="text-gray-700">
-                Нажмите ⏹️ (та же кнопка) — запись остановится.
+              <p className="text-gray-700 flex items-start gap-2 flex-wrap">
+                <span>Нажмите</span>
+                <span className="inline-flex items-center justify-center w-6 h-6 bg-red-500 rounded flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="white">
+                    <rect x="6" y="6" width="12" height="12" rx="1" />
+                  </svg>
+                </span>
+                <span>(та же кнопка) — запись остановится.</span>
               </p>
               <ul className="list-disc list-inside text-gray-600 ml-4 mt-2 space-y-1">
                 <li>Работает в названии и описании задачи</li>
@@ -83,7 +95,7 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-              ⚡ Быстрые действия
+               Быстрые действия
             </h3>
             <p className="text-gray-600 mb-2 ml-4"><strong>В списке задач:</strong></p>
             <ul className="list-disc list-inside text-gray-600 space-y-1 ml-8">
