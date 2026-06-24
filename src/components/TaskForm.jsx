@@ -30,9 +30,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const listeningFieldRef = useRef(null)
   const recognitionRef = useRef(null)
   const lastFinalIndexRef = useRef(0)
-  const lastInterimRef = useRef('')
   const pendingFieldRef = useRef(null)
-  const processedTranscriptsRef = useRef(new Set())
+  const originalTextRef = useRef('')
 
   useEffect(() => {
     if (task) {
@@ -76,48 +75,38 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         if (!transcript) continue
 
         if (result.isFinal) {
-          // КЛЮЧЕВОЕ: проверяем уникальность по СОДЕРЖИМОМУ (для мобильных)
-          const transcriptKey = transcript.toLowerCase()
-          if (!processedTranscriptsRef.current.has(transcriptKey)) {
-            newFinal += (newFinal ? ' ' : '') + transcript
-            processedTranscriptsRef.current.add(transcriptKey)
-            lastFinalIndexRef.current = i + 1
-            console.log('[VoiceInput] ✅ Final:', transcript)
-          } else {
-            console.log('[VoiceInput] ⚠️ Duplicate skipped:', transcript)
-          }
+          newFinal += (newFinal ? ' ' : '') + transcript
+          lastFinalIndexRef.current = i + 1
+          console.log('[VoiceInput] ✅ Final:', transcript)
         } else {
           interim += (interim ? ' ' : '') + transcript
         }
       }
 
-      console.log('[VoiceInput] Total final:', newFinal, '| Interim:', interim)
+      console.log('[VoiceInput] New final:', newFinal, '| Interim:', interim)
 
-      // Обновляем поле
+      // Обновляем поле ПРАВИЛЬНО
       if (newFinal || interim) {
         const setter = field === 'title' ? setTitle : setDescription
         
         setter(prev => {
-          // Убираем старый interim-хвост
-          let baseText = prev
-          if (lastInterimRef.current && prev.endsWith(lastInterimRef.current)) {
-            baseText = prev.slice(0, -lastInterimRef.current.length).trimEnd()
-          }
-          
-          // Добавляем новый финальный текст
+          // Если есть НОВЫЙ финальный текст — добавляем его к originalText
           if (newFinal) {
-            baseText = baseText ? baseText + ' ' + newFinal : newFinal
+            const newText = originalTextRef.current 
+              ? originalTextRef.current + ' ' + newFinal 
+              : newFinal
+            originalTextRef.current = newText
+            
+            // Добавляем interim поверх (будет заменён следующим final)
+            return interim ? newText + ' ' + interim : newText
           }
           
-          // Добавляем interim (будет заменён следующим final)
-          const resultText = interim ? baseText + ' ' + interim : baseText
-          
-          console.log('[VoiceInput] Updated text:', resultText)
-          return resultText.trim()
+          // Если только interim — показываем его поверх originalText + уже добавленные final
+          return interim 
+            ? originalTextRef.current + ' ' + interim 
+            : originalTextRef.current
         })
       }
-
-      lastInterimRef.current = interim
     }
 
     recog.onerror = (event) => {
@@ -132,8 +121,10 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       console.log('[VoiceInput] 🎤 Started, field:', listeningFieldRef.current)
       setRecState('listening')
       lastFinalIndexRef.current = 0
-      lastInterimRef.current = ''
-      processedTranscriptsRef.current.clear()
+      // Сохраняем текст, который был ДО начала записи
+      const field = listeningFieldRef.current
+      originalTextRef.current = field === 'title' ? title : description
+      console.log('[VoiceInput] Original text saved:', originalTextRef.current)
     }
 
     recog.onend = () => {
@@ -150,6 +141,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         setRecState('idle')
         setListeningField(null)
         listeningFieldRef.current = null
+        originalTextRef.current = ''
       }
     }
 
@@ -208,8 +200,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       listeningFieldRef.current = field
       setListeningField(field)
       lastFinalIndexRef.current = 0
-      lastInterimRef.current = ''
-      processedTranscriptsRef.current.clear()
+      originalTextRef.current = ''
       
       try {
         recog.start()
