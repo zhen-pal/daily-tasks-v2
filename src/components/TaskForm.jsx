@@ -32,6 +32,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const lastFinalIndexRef = useRef(0)
   const pendingFieldRef = useRef(null)
   const originalTextRef = useRef('')
+  const processedTranscriptsRef = useRef(new Set())
 
   useEffect(() => {
     if (task) {
@@ -75,9 +76,16 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         if (!transcript) continue
 
         if (result.isFinal) {
-          newFinal += (newFinal ? ' ' : '') + transcript
-          lastFinalIndexRef.current = i + 1
-          console.log('[VoiceInput] ✅ Final:', transcript)
+          // ДВОЙНАЯ ЗАЩИТА: индекс + содержимое (для мобильных)
+          const transcriptKey = transcript.toLowerCase()
+          if (!processedTranscriptsRef.current.has(transcriptKey)) {
+            newFinal += (newFinal ? ' ' : '') + transcript
+            processedTranscriptsRef.current.add(transcriptKey)
+            lastFinalIndexRef.current = i + 1
+            console.log('[VoiceInput] ✅ Final:', transcript)
+          } else {
+            console.log('[VoiceInput] ⚠️ Duplicate skipped:', transcript)
+          }
         } else {
           interim += (interim ? ' ' : '') + transcript
         }
@@ -101,7 +109,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             return interim ? newText + ' ' + interim : newText
           }
           
-          // Если только interim — показываем его поверх originalText + уже добавленные final
+          // Если только interim — показываем его поверх originalText
           return interim 
             ? originalTextRef.current + ' ' + interim 
             : originalTextRef.current
@@ -121,7 +129,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       console.log('[VoiceInput] 🎤 Started, field:', listeningFieldRef.current)
       setRecState('listening')
       lastFinalIndexRef.current = 0
-      // Сохраняем текст, который был ДО начала записи
+      processedTranscriptsRef.current.clear()
+      // Сохраняем ТЕКУЩИЙ текст поля как базу (для дополнения)
       const field = listeningFieldRef.current
       originalTextRef.current = field === 'title' ? title : description
       console.log('[VoiceInput] Original text saved:', originalTextRef.current)
@@ -200,6 +209,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       listeningFieldRef.current = field
       setListeningField(field)
       lastFinalIndexRef.current = 0
+      processedTranscriptsRef.current.clear()
       originalTextRef.current = ''
       
       try {
@@ -321,7 +331,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         } ${(isSaving || recState === 'starting' || recState === 'stopping') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={isListeningField ? 'Остановить запись' : 'Голосовой ввод'}
       >
-        {isListeningField ? '⏹️' : '🎤'}
+        {isListeningField ? '️' : '🎤'}
       </button>
     )
   }
