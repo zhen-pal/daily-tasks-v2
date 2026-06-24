@@ -29,10 +29,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
   const listeningFieldRef = useRef(null)
   const recognitionRef = useRef(null)
-  const lastFinalIndexRef = useRef(0)
   const pendingFieldRef = useRef(null)
-  const originalTextRef = useRef('')
-  const processedTranscriptsRef = useRef(new Set())
 
   useEffect(() => {
     if (task) {
@@ -46,186 +43,115 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   }, [task, currentDate])
 
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      console.log('[VoiceInput] SpeechRecognition не поддерживается')
-      return
-    }
-
-    const recog = new SpeechRecognition()
-    recog.continuous = true
-    recog.interimResults = true
-    recog.lang = 'ru-RU'
-    recog.maxAlternatives = 1
-
-    recog.onresult = (event) => {
-      const field = listeningFieldRef.current
-      if (!field) {
-        console.log('[VoiceInput] onresult: field is null')
-        return
-      }
-
-      let interim = ''
-      let newFinal = ''
-
-      // Обрабатываем ТОЛЬКО новые результаты от lastFinalIndex
-      for (let i = lastFinalIndexRef.current; i < event.results.length; i++) {
-        const result = event.results[i]
-        const transcript = result[0].transcript.trim()
-        
-        if (!transcript) continue
-
-        if (result.isFinal) {
-          // ДВОЙНАЯ ЗАЩИТА: индекс + содержимое (для мобильных)
-          const transcriptKey = transcript.toLowerCase()
-          if (!processedTranscriptsRef.current.has(transcriptKey)) {
-            newFinal += (newFinal ? ' ' : '') + transcript
-            processedTranscriptsRef.current.add(transcriptKey)
-            lastFinalIndexRef.current = i + 1
-            console.log('[VoiceInput] ✅ Final:', transcript)
-          } else {
-            console.log('[VoiceInput] ⚠️ Duplicate skipped:', transcript)
-          }
-        } else {
-          interim += (interim ? ' ' : '') + transcript
-        }
-      }
-
-      console.log('[VoiceInput] New final:', newFinal, '| Interim:', interim)
-
-      // Обновляем поле ПРАВИЛЬНО
-      if (newFinal || interim) {
-        const setter = field === 'title' ? setTitle : setDescription
-        
-        setter(prev => {
-          // Если есть НОВЫЙ финальный текст — добавляем его к originalText
-          if (newFinal) {
-            const newText = originalTextRef.current 
-              ? originalTextRef.current + ' ' + newFinal 
-              : newFinal
-            originalTextRef.current = newText
-            
-            // Добавляем interim поверх (будет заменён следующим final)
-            return interim ? newText + ' ' + interim : newText
-          }
-          
-          // Если только interim — показываем его поверх originalText
-          return interim 
-            ? originalTextRef.current + ' ' + interim 
-            : originalTextRef.current
-        })
-      }
-    }
-
-    recog.onerror = (event) => {
-      console.error('[VoiceInput] Error:', event.error)
-      if (event.error === 'not-allowed') {
-        alert('Доступ к микрофону запрещён.')
-        setRecState('idle')
-      }
-    }
-
-    recog.onstart = () => {
-      console.log('[VoiceInput] 🎤 Started, field:', listeningFieldRef.current)
-      setRecState('listening')
-      lastFinalIndexRef.current = 0
-      processedTranscriptsRef.current.clear()
-      // Сохраняем ТЕКУЩИЙ текст поля как базу (для дополнения)
-      const field = listeningFieldRef.current
-      originalTextRef.current = field === 'title' ? title : description
-      console.log('[VoiceInput] Original text saved:', originalTextRef.current)
-    }
-
-    recog.onend = () => {
-      console.log('[VoiceInput] ⏹️ Ended, state:', recState)
-      
-      if (pendingFieldRef.current) {
-        const next = pendingFieldRef.current
-        pendingFieldRef.current = null
-        console.log('[VoiceInput] Switching to field:', next)
-        setTimeout(() => {
-          handleMicClick(next)
-        }, 100)
-      } else {
-        setRecState('idle')
-        setListeningField(null)
-        listeningFieldRef.current = null
-        originalTextRef.current = ''
-      }
-    }
-
-    recognitionRef.current = recog
-
-    const handleVisibility = () => {
-      if (document.hidden && recState === 'listening') {
-        console.log('[VoiceInput] Tab hidden, stopping')
-        recognitionRef.current?.stop()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-
     return () => {
-      try { recog.stop() } catch (e) {}
-      document.removeEventListener('visibilitychange', handleVisibility)
+      if (recognitionRef.current) {
+        recognitionRef.current.abort()
+      }
     }
   }, [])
 
-  const handleMicClick = (field) => {
-    const recog = recognitionRef.current
-    if (!recog) {
-      alert('Голосовой ввод не поддерживается')
-      return
-    }
-
-    const oldState = recState
-
-    // Тап по той же кнопке во время записи → СТОП
+  const startVoiceInput = (field) => {
+    // Если уже идёт запись в этом поле — останавливаем
     if (recState === 'listening' && listeningFieldRef.current === field) {
-      console.log('[VoiceInput] State:', oldState, '-> stopping, field:', field)
+      console.log('[VoiceInput] Stopping')
       setRecState('stopping')
-      recog.stop()
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
       return
     }
 
-    // Тап по другой кнопке во время записи → ПЕРЕКЛЮЧЕНИЕ
+    // Если идёт запись в другом поле — переключаем
     if (recState === 'listening' && listeningFieldRef.current !== field) {
-      console.log('[VoiceInput] State:', oldState, '-> stopping (switch)')
+      console.log('[VoiceInput] Switching field')
       setRecState('stopping')
-      recog.stop()
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
       pendingFieldRef.current = field
       return
     }
 
-    // В состояниях 'starting' и 'stopping' — игнорируем
-    if (recState === 'starting' || recState === 'stopping') {
-      console.log('[VoiceInput] Blocked: state is', recState)
+    // Если в состояниях stopping/starting — игнорируем
+    if (recState === 'stopping' || recState === 'starting') {
       return
     }
 
-    // Тап в idle → СТАРТ
-    if (recState === 'idle') {
-      console.log('[VoiceInput] State:', oldState, '-> starting, field:', field)
-      setRecState('starting')
+    // Запуск записи
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Голосовой ввод не поддерживается в этом браузере. Используйте Chrome или Яндекс.Браузер.')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognitionRef.current = recognition
+
+    recognition.lang = 'ru-RU'
+    recognition.continuous = false  // как в старой версии — стабильно работает
+    recognition.interimResults = false  // как в старой версии — нет дублирования
+
+    recognition.onstart = () => {
+      console.log('[VoiceInput] Started, field:', field)
+      setRecState('listening')
       listeningFieldRef.current = field
       setListeningField(field)
-      lastFinalIndexRef.current = 0
-      processedTranscriptsRef.current.clear()
-      originalTextRef.current = ''
+    }
+
+    recognition.onend = () => {
+      console.log('[VoiceInput] Ended')
+      setRecState('idle')
+      setListeningField(null)
       
-      try {
-        recog.start()
-      } catch (e) {
-        console.error('[VoiceInput] start error:', e)
-        setRecState('idle')
-        setListeningField(null)
+      // Если нужно переключиться на другое поле
+      if (pendingFieldRef.current) {
+        const next = pendingFieldRef.current
+        pendingFieldRef.current = null
+        setTimeout(() => {
+          startVoiceInput(next)
+        }, 100)
       }
+    }
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript
+      console.log('[VoiceInput] Result:', transcript)
+      
+      // ДОПОЛНЯЕМ текст, а не заменяем (как просил пользователь)
+      if (field === 'title') {
+        setTitle(prev => prev ? prev + ' ' + transcript : transcript)
+      } else if (field === 'description') {
+        setDescription(prev => prev ? prev + ' ' + transcript : transcript)
+      }
+    }
+
+    recognition.onerror = (event) => {
+      console.error('[VoiceInput] Error:', event.error)
+      setRecState('idle')
+      setListeningField(null)
+      
+      const errorMessages = {
+        'no-speech': 'Речь не обнаружена. Попробуйте ещё раз.',
+        'audio-capture': 'Микрофон не найден. Проверьте настройки.',
+        'not-allowed': 'Доступ к микрофону запрещён. Разрешите в настройках браузера.'
+      }
+      
+      alert(errorMessages[event.error] || 'Ошибка распознавания голоса. Попробуйте ещё раз.')
+    }
+
+    try {
+      recognition.start()
+    } catch (error) {
+      console.error('[VoiceInput] Start error:', error)
+      setRecState('idle')
+      setListeningField(null)
+      alert('Не удалось запустить голосовой ввод.')
     }
   }
 
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (recState === 'listening' || recState === 'starting') {
-        console.log('[VoiceInput] Stopping before save')
         try {
           recognitionRef.current?.stop()
           setTimeout(() => resolve(), 300)
@@ -316,22 +242,32 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     const handleClick = (e) => {
       e.preventDefault()
       e.stopPropagation()
-      handleMicClick(field)
+      startVoiceInput(field)
     }
 
     return (
       <button
         type="button"
         onClick={handleClick}
-        disabled={isSaving || (recState !== 'idle' && recState !== 'listening')}
+        disabled={isSaving}
         className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all select-none touch-manipulation ${
           isListeningField 
             ? 'bg-red-500 text-white animate-pulse' 
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
-        } ${(isSaving || recState === 'starting' || recState === 'stopping') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        } ${isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={isListeningField ? 'Остановить запись' : 'Голосовой ввод'}
       >
-        {isListeningField ? '️' : '🎤'}
+        {isListeningField ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="1" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" x2="12" y1="19" y2="22" />
+          </svg>
+        )}
       </button>
     )
   }
@@ -402,7 +338,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            🕐 Время
+             Время
           </label>
           <input
             type="text"
