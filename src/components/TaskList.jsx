@@ -9,7 +9,7 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
   { value: 'high', label: '🔴 Высокий' },
-  { value: 'medium', label: '🟡 Средний' },
+  { value: 'medium', label: ' Средний' },
   { value: 'low', label: '🟢 Низкий' }
 ]
 
@@ -76,16 +76,12 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                   </h3>
                   {task.time && (
                     <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
-                      🕐 {task.time}
+                       {task.time}
                     </span>
                   )}
                 </div>
 
-                {task.description && (
-                  <p className={`text-sm text-gray-600 mb-2 break-words ${isCompleted ? 'line-through' : ''}`}>
-                    {task.description}
-                  </p>
-                )}
+                {/* Описание удалено — плашки стали компактнее */}
 
                 <div className="flex flex-wrap gap-2 items-center">
                   <div className="relative">
