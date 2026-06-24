@@ -30,9 +30,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const listeningFieldRef = useRef(null)
   const recognitionRef = useRef(null)
   const lastFinalIndexRef = useRef(0)
-  const lastInterimRef = useRef('')
   const pendingFieldRef = useRef(null)
-  const baseTextRef = useRef('')
+  const transcriptSetRef = useRef(new Set())
 
   useEffect(() => {
     if (task) {
@@ -60,55 +59,53 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recog.onresult = (event) => {
       const field = listeningFieldRef.current
-      if (!field) {
-        console.log('[VoiceInput] onresult: field is null')
-        return
-      }
+      if (!field) return
 
       let interim = ''
-      let newFinal = ''
+      let finalText = ''
 
-      // Обрабатываем ТОЛЬКО результаты от lastFinalIndex до конца
-      for (let i = lastFinalIndexRef.current; i < event.results.length; i++) {
+      // Обрабатываем ВСЕ результаты от 0 до конца
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i]
         const transcript = result[0].transcript
-        
+        const resultKey = `${i}-${transcript}`
+
         if (result.isFinal) {
-          // Финальный результат — добавляем и сдвигаем индекс
-          newFinal += (newFinal ? ' ' : '') + transcript
-          lastFinalIndexRef.current = i + 1
-          console.log('[VoiceInput] Final result:', transcript, 'newIndex:', lastFinalIndexRef.current)
+          // Проверяем, не обрабатывали ли уже этот результат
+          if (!transcriptSetRef.current.has(resultKey)) {
+            finalText += (finalText ? ' ' : '') + transcript
+            transcriptSetRef.current.add(resultKey)
+            console.log('[VoiceInput] Final:', transcript)
+          }
         } else {
-          // Interim результат — только показываем
           interim += (interim ? ' ' : '') + transcript
         }
       }
 
-      console.log('[VoiceInput] Total final:', newFinal, '| Interim:', interim)
+      console.log('[VoiceInput] Total final:', finalText, '| Interim:', interim)
 
       // Обновляем поле
-      if (newFinal || interim) {
+      if (finalText || interim) {
         const setter = field === 'title' ? setTitle : setDescription
-        
+        const currentValue = field === 'title' ? title : description
+
         setter(prev => {
-          // Сохраняем базовый текст (без interim)
-          let baseText = baseTextRef.current || prev
-          
-          // Если есть новый финальный текст — добавляем его к базе
-          if (newFinal) {
-            baseText = baseText ? baseText + ' ' + newFinal : newFinal
-            baseTextRef.current = baseText
+          // Если есть финальный текст — добавляем его
+          let newText = prev
+          if (finalText) {
+            // Проверяем, не добавлен ли уже этот текст
+            if (!prev.includes(finalText)) {
+              newText = newText ? newText + ' ' + finalText : finalText
+            }
           }
-          
-          // Добавляем interim (он будет заменён следующим interim или следующим final)
-          const resultText = interim ? baseText + ' ' + interim : baseText
-          console.log('[VoiceInput] Setting text:', resultText)
-          
-          return resultText.trim()
+          // Interim показываем, но не сохраняем permanently
+          if (interim && !finalText) {
+            // Показываем interim только если нет финального
+            return newText
+          }
+          return newText.trim()
         })
       }
-
-      lastInterimRef.current = interim
     }
 
     recog.onerror = (event) => {
@@ -120,38 +117,25 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recog.onstart = () => {
-      console.log('[VoiceInput] onstart: field:', listeningFieldRef.current)
+      console.log('[VoiceInput] Started, field:', listeningFieldRef.current)
       setRecState('listening')
       lastFinalIndexRef.current = 0
-      lastInterimRef.current = ''
-      // Сохраняем текущий текст как базу
-      const field = listeningFieldRef.current
-      if (field === 'title') {
-        baseTextRef.current = title
-      } else if (field === 'description') {
-        baseTextRef.current = description
-      }
-      console.log('[VoiceInput] Base text saved:', baseTextRef.current)
+      transcriptSetRef.current.clear()
     }
 
     recog.onend = () => {
-      console.log('[VoiceInput] onend, state:', recState)
-      
-      // Очищаем interim
-      lastInterimRef.current = ''
+      console.log('[VoiceInput] Ended')
       
       if (pendingFieldRef.current) {
         const next = pendingFieldRef.current
         pendingFieldRef.current = null
-        console.log('[VoiceInput] Switching to field:', next)
         setTimeout(() => {
           handleMicClick(next)
-        }, 50)
+        }, 100)
       } else {
         setRecState('idle')
         setListeningField(null)
         listeningFieldRef.current = null
-        baseTextRef.current = ''
       }
     }
 
@@ -159,7 +143,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     const handleVisibility = () => {
       if (document.hidden && recState === 'listening') {
-        console.log('[VoiceInput] Tab hidden, stopping')
         recognitionRef.current?.stop()
       }
     }
@@ -178,40 +161,32 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       return
     }
 
-    const oldState = recState
-
-    // Тап по той же кнопке во время записи → СТОП
     if (recState === 'listening' && listeningFieldRef.current === field) {
-      console.log('[VoiceInput] State:', oldState, '-> stopping, field:', field)
+      console.log('[VoiceInput] Stopping')
       setRecState('stopping')
       recog.stop()
       return
     }
 
-    // Тап по другой кнопке во время записи → ПЕРЕКЛЮЧЕНИЕ
     if (recState === 'listening' && listeningFieldRef.current !== field) {
-      console.log('[VoiceInput] State:', oldState, '-> stopping (switch), from:', listeningFieldRef.current, 'to:', field)
+      console.log('[VoiceInput] Switching field')
       setRecState('stopping')
       recog.stop()
       pendingFieldRef.current = field
       return
     }
 
-    // В состояниях 'starting' и 'stopping' — игнорируем
     if (recState === 'starting' || recState === 'stopping') {
-      console.log('[VoiceInput] Blocked: state is', recState)
       return
     }
 
-    // Тап в idle → СТАРТ
     if (recState === 'idle') {
-      console.log('[VoiceInput] State:', oldState, '-> starting, field:', field)
+      console.log('[VoiceInput] Starting, field:', field)
       setRecState('starting')
       listeningFieldRef.current = field
       setListeningField(field)
       lastFinalIndexRef.current = 0
-      lastInterimRef.current = ''
-      baseTextRef.current = ''
+      transcriptSetRef.current.clear()
       
       try {
         recog.start()
@@ -226,7 +201,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (recState === 'listening' || recState === 'starting') {
-        console.log('[VoiceInput] Stopping before save')
         try {
           recognitionRef.current?.stop()
           setTimeout(() => resolve(), 300)
