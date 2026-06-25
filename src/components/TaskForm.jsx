@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '⚙️ В работе' },
+  { value: 'in-progress', label: '️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -51,9 +51,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   }, [])
 
   const startVoiceInput = (field) => {
-    // Если уже идёт запись в этом поле — останавливаем
     if (recState === 'listening' && listeningFieldRef.current === field) {
-      console.log('[VoiceInput] Stopping')
       setRecState('stopping')
       if (recognitionRef.current) {
         recognitionRef.current.stop()
@@ -61,9 +59,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       return
     }
 
-    // Если идёт запись в другом поле — переключаем
     if (recState === 'listening' && listeningFieldRef.current !== field) {
-      console.log('[VoiceInput] Switching field')
       setRecState('stopping')
       if (recognitionRef.current) {
         recognitionRef.current.stop()
@@ -72,14 +68,12 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       return
     }
 
-    // Если в состояниях stopping/starting — игнорируем
     if (recState === 'stopping' || recState === 'starting') {
       return
     }
 
-    // Запуск записи
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Голосовой ввод не поддерживается в этом браузере. Используйте Chrome или Яндекс.Браузер.')
+      alert('Голосовой ввод не поддерживается в этом браузере.')
       return
     }
 
@@ -88,22 +82,18 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     recognitionRef.current = recognition
 
     recognition.lang = 'ru-RU'
-    recognition.continuous = false  // как в старой версии — стабильно работает
-    recognition.interimResults = false  // как в старой версии — нет дублирования
+    recognition.continuous = false
+    recognition.interimResults = false
 
     recognition.onstart = () => {
-      console.log('[VoiceInput] Started, field:', field)
       setRecState('listening')
       listeningFieldRef.current = field
       setListeningField(field)
     }
 
     recognition.onend = () => {
-      console.log('[VoiceInput] Ended')
       setRecState('idle')
       setListeningField(null)
-      
-      // Если нужно переключиться на другое поле
       if (pendingFieldRef.current) {
         const next = pendingFieldRef.current
         pendingFieldRef.current = null
@@ -115,9 +105,6 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
-      console.log('[VoiceInput] Result:', transcript)
-      
-      // ДОПОЛНЯЕМ текст, а не заменяем (как просил пользователь)
       if (field === 'title') {
         setTitle(prev => prev ? prev + ' ' + transcript : transcript)
       } else if (field === 'description') {
@@ -126,7 +113,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     recognition.onerror = (event) => {
-      console.error('[VoiceInput] Error:', event.error)
+      console.error('Ошибка распознавания:', event.error)
       setRecState('idle')
       setListeningField(null)
       
@@ -136,16 +123,15 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         'not-allowed': 'Доступ к микрофону запрещён. Разрешите в настройках браузера.'
       }
       
-      alert(errorMessages[event.error] || 'Ошибка распознавания голоса. Попробуйте ещё раз.')
+      alert(errorMessages[event.error] || 'Ошибка распознавания голоса.')
     }
 
     try {
       recognition.start()
     } catch (error) {
-      console.error('[VoiceInput] Start error:', error)
+      console.error('Ошибка запуска:', error)
       setRecState('idle')
       setListeningField(null)
-      alert('Не удалось запустить голосовой ввод.')
     }
   }
 
@@ -188,7 +174,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
 
     if (time && !validateTime(time)) {
-      setTimeError('Введите время в формате ЧЧ:ММ (например, 14:30)')
+      setTimeError('Введите время в формате ЧЧ:ММ')
       return
     }
 
@@ -212,7 +198,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     try {
       await onSave(taskData)
     } catch (error) {
-      console.error('[TaskForm] Save error:', error)
+      console.error('Ошибка сохранения:', error)
       alert('Ошибка при сохранении.')
     } finally {
       setIsSaving(false)
@@ -250,7 +236,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         type="button"
         onClick={handleClick}
         disabled={isSaving}
-        className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all select-none touch-manipulation ${
+        className={`w-11 h-11 flex items-center justify-center rounded-lg transition-all select-none touch-manipulation flex-shrink-0 ${
           isListeningField 
             ? 'bg-red-500 text-white animate-pulse' 
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
@@ -258,11 +244,11 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         title={isListeningField ? 'Остановить запись' : 'Голосовой ввод'}
       >
         {isListeningField ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <rect x="6" y="6" width="12" height="12" rx="1" />
           </svg>
         ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
             <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
             <line x1="12" x2="12" y1="19" y2="22" />
@@ -273,13 +259,14 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-md mb-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl p-4 md:p-6 shadow-md mb-4">
+      <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-3">
         {task ? '✏️ Редактировать задачу' : '➕ Новая задача'}
       </h2>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      {/* Название */}
+      <div className="mb-3">
+        <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
           Что нужно сделать? *
         </label>
         <div className="flex gap-2">
@@ -288,7 +275,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Например: Купить продукты"
-            className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+            className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base ${
               titleError ? 'border-red-300' : 'border-gray-300'
             }`}
             autoFocus
@@ -296,12 +283,13 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           <MicButton field="title" isListeningField={isListeningTitle} />
         </div>
         {titleError && (
-          <p className="text-red-500 text-sm mt-1">{titleError}</p>
+          <p className="text-red-500 text-xs mt-1">{titleError}</p>
         )}
       </div>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      {/* Описание */}
+      <div className="mb-3">
+        <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
           Описание
         </label>
         <div className="flex gap-2">
@@ -311,7 +299,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             placeholder="Подробности задачи..."
             maxLength={500}
             rows={3}
-            className={`flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none ${
+            className={`flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm md:text-base ${
               isListeningDesc ? 'pointer-events-none opacity-90' : ''
             }`}
           />
@@ -322,23 +310,24 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </p>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Дата и Время на одной строке */}
+      <div className="mb-3 grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            📅 Дата
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+             Дата
           </label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-             Время
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+            🕐 Время
           </label>
           <input
             type="text"
@@ -347,77 +336,82 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             placeholder="ЧЧ:ММ"
             inputMode="numeric"
             maxLength={5}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-lg ${
+            className={`w-full px-2 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm md:text-base ${
               timeError ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Пример: 14:30
-          </p>
           {timeError && (
-            <p className="text-red-500 text-sm mt-1">{timeError}</p>
+            <p className="text-red-500 text-xs mt-1">{timeError}</p>
           )}
         </div>
       </div>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          📊 Статус
-        </label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        >
-          {STATUS_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      {/* Статус и Приоритет на одной строке */}
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+            📊 Статус
+          </label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+          >
+            {STATUS_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+            🎯 Приоритет
+          </label>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+          >
+            {PRIORITY_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          🎯 Приоритет
-        </label>
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        >
-          {PRIORITY_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex gap-3">
+      {/* Кнопки только с иконками */}
+      <div className="flex gap-2">
         <button
           type="submit"
           disabled={isSaving}
-          className="flex-1 bg-primary text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="flex-1 bg-primary text-white py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          title="Сохранить"
         >
           {isSaving ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Сохранение...
-            </>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
           ) : (
-            <>
-              💾 Сохранить
-            </>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
           )}
         </button>
         <button
           type="button"
           onClick={onCancel}
           disabled={isSaving}
-          className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
+          className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 flex items-center justify-center"
+          title="Отмена"
         >
-          Отмена
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
         </button>
       </div>
     </form>

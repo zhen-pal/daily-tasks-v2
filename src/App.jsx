@@ -20,28 +20,21 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthChange((currentUser) => {
-      console.log('Auth state changed:', currentUser?.email)
       setUser(currentUser)
       setLoading(false)
     })
-
     return () => unsubscribe()
   }, [])
 
   useEffect(() => {
     if (!user) return
-
-    console.log('Subscribing to tasks for user:', user.uid, 'date:', selectedDate)
     const unsubscribe = subscribeToTasks(user.uid, selectedDate, (tasksData) => {
-      console.log('Tasks updated:', tasksData.length)
       setTasks(tasksData)
     })
-
     return () => unsubscribe()
   }, [user, selectedDate])
 
   const handleSaveTask = async (taskData) => {
-    console.log('Saving task:', taskData)
     const { dateChanged, id, ...task } = taskData
     const taskDate = task.date || selectedDate
     
@@ -54,10 +47,8 @@ function App() {
     
     try {
       if (editingTask) {
-        console.log('Updating task:', editingTask.id)
         await updateTask(editingTask.id, task)
       } else {
-        console.log('Adding new task')
         const newTask = { ...task }
         delete newTask.id
         delete newTask.dateChanged
@@ -73,10 +64,8 @@ function App() {
 
   const handleMove = async () => {
     if (!pendingTask) return
-    
     try {
       const { task, oldDate, newDate } = pendingTask
-      console.log('Moving task from', oldDate, 'to', newDate)
       await updateTask(task.id, { ...task, date: newDate })
       setPendingTask(null)
       setEditingTask(null)
@@ -88,7 +77,6 @@ function App() {
 
   const handleCopy = async () => {
     if (!pendingTask) return
-    
     try {
       const { task, newDate } = pendingTask
       const copiedTask = { 
@@ -97,8 +85,6 @@ function App() {
         createdAt: new Date().toISOString()
       }
       delete copiedTask.id
-      
-      console.log('Copying task to', newDate)
       await addTask(copiedTask)
       setPendingTask(null)
       setEditingTask(null)
@@ -114,10 +100,8 @@ function App() {
   }
 
   const handleToggleStatus = async (taskId) => {
-    console.log('Toggling status for task:', taskId)
     const task = tasks.find(t => t.id === taskId)
     if (!task) return
-
     const newStatus = task.status === 'completed' ? 'new' : 'completed'
     try {
       await updateTask(taskId, { status: newStatus })
@@ -128,7 +112,6 @@ function App() {
 
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm('Удалить задачу?')) return
-    console.log('Deleting task:', taskId)
     try {
       await deleteTask(taskId)
     } catch (error) {
@@ -138,13 +121,11 @@ function App() {
   }
 
   const handleEditTask = (task) => {
-    console.log('Editing task:', task.id)
     setEditingTask(task)
     setShowForm(true)
   }
 
   const handleCopyTask = async (task) => {
-    console.log('Copying task:', task.id)
     const newTask = { 
       ...task,
       date: selectedDate,
@@ -159,7 +140,6 @@ function App() {
   }
 
   const handleUpdateField = async (taskId, field, value) => {
-    console.log(`Updating field ${field} to ${value} for task:`, taskId)
     try {
       await updateTask(taskId, { [field]: value })
     } catch (error) {
@@ -195,25 +175,26 @@ function App() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="bg-white shadow-sm">
-          <div className="container mx-auto px-4 py-3 max-w-2xl flex justify-between items-center">
-            <div className="flex items-center gap-3">
+        {/* Верхняя панель пользователя */}
+        <div className="bg-white shadow-sm sticky top-0 z-30">
+          <div className="container mx-auto px-3 py-2 max-w-2xl flex justify-between items-center">
+            <div className="flex items-center gap-2 min-w-0">
               {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName} className="w-10 h-10 rounded-full" />
+                <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full flex-shrink-0" />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0">
                   {user.email?.[0].toUpperCase()}
                 </div>
               )}
-              <div>
-                <p className="font-medium text-gray-800">{user.displayName || user.email}</p>
-                <p className="text-xs text-gray-500">{user.email}</p>
+              <div className="min-w-0">
+                <p className="font-medium text-gray-800 text-sm truncate">{user.displayName || user.email}</p>
+                <p className="text-xs text-gray-500 truncate hidden sm:block">{user.email}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowHelp(true)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-2"
+                className="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                 title="Помощь"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -221,47 +202,61 @@ function App() {
                   <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
-                Помощь
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Выйти"
               >
-                🚪 Выйти
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
               </button>
             </div>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <div className="container mx-auto px-3 py-4 max-w-2xl">
+          {/* Заголовок — компактный */}
+          <div className="text-center mb-4">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1 whitespace-nowrap">
               еЖЕдневНЯ - Мои задачи
             </h1>
-            <p className="text-lg text-gray-600">Организуйте свой день эффективно</p>
+            <p className="text-xs md:text-sm text-gray-600">Организуйте свой день эффективно</p>
           </div>
 
-          <DateSelector 
-            selectedDate={selectedDate} 
-            onDateChange={setSelectedDate} 
-          />
-
-          <div className="flex gap-2 mb-6">
+          {/* Дата + Добавить задачу на одной строке */}
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1">
+              <DateSelector 
+                selectedDate={selectedDate} 
+                onDateChange={setSelectedDate} 
+              />
+            </div>
             <button
               onClick={() => {
                 setEditingTask(null)
                 setShowForm(true)
               }}
-              className="flex-1 bg-primary text-white px-4 py-3 rounded-lg shadow-md hover:shadow-lg transition-all font-medium"
+              className="bg-primary text-white px-3 md:px-4 py-2 md:py-3 rounded-lg shadow-md hover:shadow-lg transition-all font-medium text-sm md:text-base whitespace-nowrap flex items-center gap-1"
             >
-              ➕ Добавить задачу
+              <span className="text-lg">➕</span>
+              <span className="hidden sm:inline">Добавить</span>
             </button>
+          </div>
+
+          {/* Кнопка Экспорт — только иконка, справа */}
+          <div className="flex justify-end mb-4">
             <button
               onClick={handleExport}
               disabled={tasks.length === 0}
-              className="bg-white text-gray-700 px-4 py-3 rounded-lg shadow-md hover:shadow-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-white text-gray-600 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+              title="Экспорт в CSV"
             >
-              📥 Экспорт
+              <span>📥</span>
+              <span className="hidden sm:inline">Экспорт</span>
             </button>
           </div>
 

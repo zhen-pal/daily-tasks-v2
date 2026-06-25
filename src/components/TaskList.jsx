@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '⚙️ В работе' },
+  { value: 'in-progress', label: '️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -31,22 +31,16 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
 
   if (tasks.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-xl shadow-sm">
-        <p className="text-6xl mb-4">📝</p>
-        <p className="text-gray-500 text-lg">Задач на этот день нет</p>
-        <p className="text-gray-400 text-sm mt-2">Нажмите "Добавить задачу" чтобы начать</p>
+      <div className="text-center py-8 bg-white rounded-xl shadow-sm">
+        <p className="text-5xl mb-3">📝</p>
+        <p className="text-gray-500 text-base">Задач на этот день нет</p>
+        <p className="text-gray-400 text-xs mt-1">Нажмите "Добавить" чтобы начать</p>
       </div>
     )
   }
 
-  // Закрытие меню при клике вне
-  const closeAllMenus = () => {
-    setOpenStatusMenu(null)
-    setOpenPriorityMenu(null)
-  }
-
   return (
-    <div className="space-y-3" onClick={closeAllMenus}>
+    <div className="space-y-2" onClick={() => { setOpenStatusMenu(null); setOpenPriorityMenu(null); }}>
       {sortedTasks.map(task => {
         const status = getStatus(task.status)
         const priority = getPriority(task.priority)
@@ -55,18 +49,19 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
         return (
           <div
             key={task.id}
-            className={`bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-all ${
+            className={`bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-all ${
               isCompleted ? 'opacity-60' : ''
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start gap-3">
+            {/* Верхняя строка: чекбокс + название + время + действия */}
+            <div className="flex items-start gap-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onToggleStatus(task.id)
                 }}
-                className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                   isCompleted 
                     ? 'bg-green-500 border-green-500' 
                     : 'border-gray-300 hover:border-primary'
@@ -80,18 +75,19 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
               </button>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className={`font-medium text-gray-800 break-words ${isCompleted ? 'line-through' : ''}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className={`font-medium text-gray-800 break-words text-sm md:text-base flex-1 ${isCompleted ? 'line-through' : ''}`}>
                     {task.title}
                   </h3>
                   {task.time && (
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
-                      🕐 {task.time}
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
+                       {task.time}
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 items-center">
+                {/* Вторая строка: статус + приоритет на одной строке */}
+                <div className="flex flex-wrap gap-1.5 items-center">
                   <div className="relative">
                     <button
                       onClick={(e) => {
@@ -99,7 +95,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                         setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
                         setOpenPriorityMenu(null)
                       }}
-                      className="px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
+                      className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
                     >
                       {status.label}
                     </button>
@@ -131,7 +127,7 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                         setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
                         setOpenStatusMenu(null)
                       }}
-                      className="px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
+                      className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
                     >
                       {priority.label}
                     </button>
@@ -158,16 +154,17 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                 </div>
               </div>
 
-              <div className="flex gap-1 flex-shrink-0">
+              {/* Кнопки действий */}
+              <div className="flex gap-0.5 flex-shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     onCopy(task)
                   }}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Копировать на сегодня"
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Копировать"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                 </button>
@@ -176,10 +173,10 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                     e.stopPropagation()
                     onEdit(task)
                   }}
-                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                   title="Редактировать"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
@@ -188,10 +185,10 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                     e.stopPropagation()
                     onDelete(task.id)
                   }}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Удалить"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
