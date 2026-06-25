@@ -19,6 +19,8 @@ import { auth, googleProvider } from './config'
 export const signUp = async (email, password, displayName) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    import { updateProfile } from 'firebase/auth'
+    await updateProfile(user, { displayName: name })
     if (displayName && userCredential.user) {
       await updateProfile(userCredential.user, { displayName })
     }

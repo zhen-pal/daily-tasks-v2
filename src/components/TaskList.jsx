@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '️ В работе' },
+  { value: 'in-progress', label: '⚙️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -54,14 +54,13 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Верхняя строка: чекбокс + название + время + действия */}
             <div className="flex items-start gap-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onToggleStatus(task.id)
                 }}
-                className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                   isCompleted 
                     ? 'bg-green-500 border-green-500' 
                     : 'border-gray-300 hover:border-primary'
@@ -75,19 +74,20 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
               </button>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                {/* Название и время в одной строке */}
+                <div className="flex items-start gap-2">
                   <h3 className={`font-medium text-gray-800 break-words text-sm md:text-base flex-1 ${isCompleted ? 'line-through' : ''}`}>
                     {task.title}
                   </h3>
                   {task.time && (
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
-                       {task.time}
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">
+                      🕐 {task.time}
                     </span>
                   )}
                 </div>
 
-                {/* Вторая строка: статус + приоритет на одной строке */}
-                <div className="flex flex-wrap gap-1.5 items-center">
+                {/* Статус и приоритет — выровнены по левому краю названия */}
+                <div className="flex flex-wrap gap-1.5 items-center mt-1">
                   <div className="relative">
                     <button
                       onClick={(e) => {
@@ -154,7 +154,6 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                 </div>
               </div>
 
-              {/* Кнопки действий */}
               <div className="flex gap-0.5 flex-shrink-0">
                 <button
                   onClick={(e) => {
