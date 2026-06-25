@@ -157,6 +157,11 @@ function App() {
     }
   }
 
+  // Возврат к сегодняшней дате
+  const handleGoToToday = () => {
+    setSelectedDate(new Date().toISOString().split('T')[0])
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center">
@@ -171,6 +176,9 @@ function App() {
   if (!user) {
     return <Auth onAuth={setUser} />
   }
+
+  const today = new Date().toISOString().split('T')[0]
+  const isToday = selectedDate === today
 
   return (
     <>
@@ -188,7 +196,7 @@ function App() {
               )}
               <div className="min-w-0">
                 <p className="font-medium text-gray-800 text-sm truncate">{user.displayName || user.email}</p>
-                <p className="text-xs text-gray-500 truncate hidden sm:block">{user.email}</p>
+                <p className="text-xs text-gray-500 truncate">{user.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -218,46 +226,53 @@ function App() {
           </div>
         </div>
 
-        <div className="container mx-auto px-3 py-4 max-w-2xl">
+        <div className="container mx-auto px-3 py-3 max-w-2xl">
           {/* Заголовок — компактный */}
-          <div className="text-center mb-4">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-1 whitespace-nowrap">
+          <div className="text-center mb-3">
+            <h1 className="text-lg md:text-xl font-bold text-gray-800 whitespace-nowrap">
               еЖЕдневНЯ - Мои задачи
             </h1>
-            <p className="text-xs md:text-sm text-gray-600">Организуйте свой день эффективно</p>
+            <p className="text-xs text-gray-600">Организуйте свой день эффективно</p>
           </div>
 
-          {/* Дата + Добавить задачу на одной строке */}
-          <div className="flex gap-2 mb-3">
+          {/* Дата (2/3) + кнопки Добавить/Экспорт (1/3) */}
+          <div className="flex gap-2 mb-2">
             <div className="flex-1">
               <DateSelector 
                 selectedDate={selectedDate} 
                 onDateChange={setSelectedDate} 
               />
+              {/* Ссылка "Вернуться к сегодня" */}
+              {!isToday && (
+                <button
+                  onClick={handleGoToToday}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 mt-1 flex items-center gap-1"
+                >
+                  ← Вернуться к сегодня
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => {
-                setEditingTask(null)
-                setShowForm(true)
-              }}
-              className="bg-primary text-white px-3 md:px-4 py-2 md:py-3 rounded-lg shadow-md hover:shadow-lg transition-all font-medium text-sm md:text-base whitespace-nowrap flex items-center gap-1"
-            >
-              <span className="text-lg">➕</span>
-              <span className="hidden sm:inline">Добавить</span>
-            </button>
-          </div>
-
-          {/* Кнопка Экспорт — только иконка, справа */}
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={handleExport}
-              disabled={tasks.length === 0}
-              className="bg-white text-gray-600 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
-              title="Экспорт в CSV"
-            >
-              <span>📥</span>
-              <span className="hidden sm:inline">Экспорт</span>
-            </button>
+            <div className="w-1/3 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setEditingTask(null)
+                  setShowForm(true)
+                }}
+                className="bg-indigo-300 text-white px-2 py-2 rounded-lg shadow-sm hover:bg-indigo-400 transition-all font-medium text-xs md:text-sm flex items-center justify-center gap-1"
+              >
+                <span>➕</span>
+                <span>Добавить</span>
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={tasks.length === 0}
+                className="bg-white text-gray-600 px-2 py-2 rounded-lg shadow-sm hover:shadow-md transition-all font-medium text-xs md:text-sm flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
+                title="Экспорт в CSV"
+              >
+                <span>📥</span>
+                <span>Экспорт</span>
+              </button>
+            </div>
           </div>
 
           {showForm && (
