@@ -54,7 +54,6 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ПЕРВАЯ СТРОКА: чекбокс + название + время + действия */}
             <div className="flex items-start gap-2">
               {/* Чекбокс */}
               <button
@@ -75,18 +74,13 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                 )}
               </button>
 
-              {/* Название + время + действия */}
               <div className="flex-1 min-w-0">
+                {/* ПЕРВАЯ СТРОКА: название + кнопки действий */}
                 <div className="flex items-start justify-between gap-2">
                   <h3 className={`font-medium text-gray-800 break-words text-sm md:text-base flex-1 ${isCompleted ? 'line-through' : ''}`}>
                     {task.title}
                   </h3>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {task.time && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded mr-1">
-                        🕐 {task.time}
-                      </span>
-                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -126,8 +120,14 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                   </div>
                 </div>
 
-                {/* ВТОРАЯ СТРОКА: статус + приоритет (закреплены под действиями) */}
+                {/* ВТОРАЯ СТРОКА: время + статус + приоритет */}
                 <div className="flex flex-wrap gap-1.5 items-center mt-1">
+                  {task.time && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                       {task.time}
+                    </span>
+                  )}
+
                   <div className="relative">
                     <button
                       onClick={(e) => {
