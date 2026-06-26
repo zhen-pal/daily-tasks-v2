@@ -112,7 +112,7 @@ export default function Auth({ onAuth }) {
           </button>
 
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">еЖЕдневНЯ</h1>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">еЖЕдневНиЯ</h1>
             <p className="text-xl text-gray-600 mb-2">Мои задачи</p>
             <p className="text-sm text-gray-500">Организуйте свой день эффективно</p>
           </div>

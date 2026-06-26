@@ -230,7 +230,7 @@ function App() {
           {/* Заголовок — компактный */}
           <div className="text-center mb-3">
             <h1 className="text-lg md:text-xl font-bold text-gray-800 whitespace-nowrap">
-              еЖЕдневНЯ - Мои задачи
+              еЖЕдневНиЯ - Мои задачи
             </h1>
             <p className="text-xs text-gray-600">Организуйте свой день эффективно</p>
           </div>

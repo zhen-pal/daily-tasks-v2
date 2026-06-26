@@ -74,83 +74,80 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
               </button>
 
               <div className="flex-1 min-w-0">
-                {/* Название и время в одной строке */}
+                {/* Название с inline статусом и приоритетом */}
                 <div className="flex items-start gap-2">
                   <h3 className={`font-medium text-gray-800 break-words text-sm md:text-base flex-1 ${isCompleted ? 'line-through' : ''}`}>
                     {task.title}
-                  </h3>
-                  {task.time && (
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">
-                      🕐 {task.time}
+                    {task.time && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded ml-2 inline-block align-middle">
+                        🕐 {task.time}
+                      </span>
+                    )}
+                    {/* Статус inline */}
+                    <span className="inline-block relative ml-2 align-middle">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
+                          setOpenPriorityMenu(null)
+                        }}
+                        className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
+                      >
+                        {status.label}
+                      </button>
+                      {openStatusMenu === task.id && (
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
+                          {STATUS_OPTIONS.map(option => (
+                            <button
+                              key={option.value}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onUpdateField(task.id, 'status', option.value)
+                                setOpenStatusMenu(null)
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                                task.status === option.value ? 'bg-gray-100 font-medium' : ''
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </span>
-                  )}
-                </div>
-
-                {/* Статус и приоритет — выровнены по левому краю названия */}
-                <div className="flex flex-wrap gap-1.5 items-center mt-1">
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
-                        setOpenPriorityMenu(null)
-                      }}
-                      className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
-                    >
-                      {status.label}
-                    </button>
-                    {openStatusMenu === task.id && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
-                        {STATUS_OPTIONS.map(option => (
-                          <button
-                            key={option.value}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onUpdateField(task.id, 'status', option.value)
-                              setOpenStatusMenu(null)
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                              task.status === option.value ? 'bg-gray-100 font-medium' : ''
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
-                        setOpenStatusMenu(null)
-                      }}
-                      className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
-                    >
-                      {priority.label}
-                    </button>
-                    {openPriorityMenu === task.id && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
-                        {PRIORITY_OPTIONS.map(option => (
-                          <button
-                            key={option.value}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onUpdateField(task.id, 'priority', option.value)
-                              setOpenPriorityMenu(null)
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                              task.priority === option.value ? 'bg-gray-100 font-medium' : ''
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    {/* Приоритет inline */}
+                    <span className="inline-block relative ml-2 align-middle">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
+                          setOpenStatusMenu(null)
+                        }}
+                        className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
+                      >
+                        {priority.label}
+                      </button>
+                      {openPriorityMenu === task.id && (
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
+                          {PRIORITY_OPTIONS.map(option => (
+                            <button
+                              key={option.value}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onUpdateField(task.id, 'priority', option.value)
+                                setOpenPriorityMenu(null)
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                                task.priority === option.value ? 'bg-gray-100 font-medium' : ''
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </span>
+                  </h3>
                 </div>
               </div>
 

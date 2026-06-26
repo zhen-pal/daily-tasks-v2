@@ -1,64 +1,80 @@
-import { 
+import { initializeApp } from 'firebase/app'
+import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   signOut,
-  updatePassword,
-  updateEmail,
-  sendPasswordResetEmail,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  getRedirectResult,
+  signInWithRedirect,
   updateProfile,
-  fetchSignInMethodsForEmail,
-  GoogleAuthProvider
+  sendPasswordResetEmail
 } from 'firebase/auth'
-import { auth, googleProvider } from './config'
+import { getFirestore, doc, setDoc } from 'firebase/firestore'
 
-// Регистрация email + пароль
-export const signUp = async (email, password, displayName) => {
+// Конфигурация Firebase (замените на ваши реальные значения!)
+const firebaseConfig = {
+  apiKey: "AIzaSyDbpF_zZHTe3vTJGqBqy-yGXtgAApa0ETs",
+  authDomain: "zh-daily-tasks-app.firebaseapp.com",
+  projectId: "zh-daily-tasks-app",
+  storageBucket: "zh-daily-tasks-app.firebasestorage.app",
+  messagingSenderId: "351199620796",
+  appId: "1:351199620796:web:cba4517355d08b93692ab9",
+  measurementId: "G-CEW9PBCF2G"
+}
+
+// Инициализация Firebase
+const app = initializeApp(firebaseConfig)
+const auth = getAuth(app)
+const db = getFirestore(app)
+const googleProvider = new GoogleAuthProvider()
+
+// Регистрация с сохранением имени в Authentication И Firestore
+export const signUp = async (email, password, name) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    import { updateProfile } from 'firebase/auth'
-    await updateProfile(user, { displayName: name })
-    if (displayName && userCredential.user) {
-      await updateProfile(userCredential.user, { displayName })
-    }
-    return { success: true, user: userCredential.user }
+    const user = userCredential.user
+    
+    // 1. Сохраняем имя в Authentication
+    await updateProfile(user, {
+      displayName: name
+    })
+    
+    // 2. Сохраняем профиль пользователя в Firestore
+    await setDoc(doc(db, 'users', user.uid), {
+      displayName: name,
+      email: email,
+      createdAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString()
+    })
+    
+    return { success: true, user }
   } catch (error) {
-    console.error('Sign up error:', error)
+    console.error('signUp error:', error)
     return { success: false, error: error.code }
   }
 }
 
-// Проверка, существует ли email
-export const checkEmailExists = async (email) => {
-  try {
-    const methods = await fetchSignInMethodsForEmail(auth, email)
-    return methods && methods.length > 0
-  } catch (error) {
-    console.error('Check email error:', error)
-    return true
-  }
-}
-
-// Вход email + пароль
+// Вход по email/паролю
 export const signIn = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    return { success: true, user: userCredential.user }
-  } catch (error) {
-    console.error('Sign in error:', error)
+    const user = userCredential.user
     
-    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-      const emailExists = await checkEmailExists(email)
-      if (!emailExists) {
-        return { success: false, error: 'auth/user-not-found' }
-      } else {
-        return { success: false, error: 'auth/wrong-password' }
-      }
+    // Обновляем lastLogin в Firestore
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        lastLogin: new Date().toISOString()
+      }, { merge: true }) // merge: true — не перезаписывает существующие поля
+    } catch (firestoreError) {
+      console.log('Firestore update skipped:', firestoreError)
     }
     
+    return { success: true, user }
+  } catch (error) {
+    console.error('signIn error:', error)
     return { success: false, error: error.code }
   }
 }
@@ -66,77 +82,109 @@ export const signIn = async (email, password) => {
 // Вход через Google
 export const signInWithGoogle = async () => {
   try {
-    // Пробуем popup на всех устройствах
-    console.log('Using popup for Google sign in')
-    const result = await signInWithPopup(auth, googleProvider)
-    return { success: true, user: result.user, redirect: false }
-  } catch (error) {
-    console.error('Popup failed, trying redirect:', error)
-    
-    // Если popup не сработал (блокировка), пробуем redirect
-    try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-      if (isMobile) {
-        await signInWithRedirect(auth, googleProvider)
-        return { success: true, redirect: true }
-      }
-    } catch (redirectError) {
-      console.error('Redirect also failed:', redirectError)
+    if (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      await signInWithRedirect(auth, googleProvider)
+      return { success: false, redirect: true }
     }
     
+    const result = await signInWithPopup(auth, googleProvider)
+    const user = result.user
+    
+    // Сохраняем/обновляем профиль в Firestore
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        lastLogin: new Date().toISOString(),
+        provider: 'google'
+      }, { merge: true })
+    } catch (firestoreError) {
+      console.log('Firestore update skipped:', firestoreError)
+    }
+    
+    return { success: true, user }
+  } catch (error) {
+    console.error('signInWithGoogle error:', error)
     return { success: false, error: error.code }
   }
 }
-
 
 // Проверка результата редиректа (для мобильных)
 export const checkGoogleRedirectResult = async () => {
   try {
     const result = await getRedirectResult(auth)
-    if (result) {
+    if (result && result.user) {
+      // Сохраняем в Firestore
+      try {
+        await setDoc(doc(db, 'users', result.user.uid), {
+          displayName: result.user.displayName,
+          email: result.user.email,
+          photoURL: result.user.photoURL,
+          lastLogin: new Date().toISOString(),
+          provider: 'google'
+        }, { merge: true })
+      } catch (firestoreError) {
+        console.log('Firestore update skipped:', firestoreError)
+      }
+      
       return { success: true, user: result.user }
     }
     return { success: false }
   } catch (error) {
-    console.error('Redirect result error:', error)
+    console.error('checkGoogleRedirectResult error:', error)
     return { success: false, error: error.code }
   }
 }
 
-// Выход
-export const logOut = async () => {
-  await signOut(auth)
-}
-
 // Восстановление пароля
 export const resetPassword = async (email) => {
-  await sendPasswordResetEmail(auth, email)
+  try {
+    await sendPasswordResetEmail(auth, email)
+    return { success: true }
+  } catch (error) {
+    console.error('resetPassword error:', error)
+    return { success: false, error: error.code }
+  }
 }
 
-// Подписка на изменения состояния аутентификации
+// Выход из аккаунта
+export const logOut = async () => {
+  try {
+    await signOut(auth)
+    return { success: true }
+  } catch (error) {
+    console.error('logOut error:', error)
+    return { success: false, error: error.code }
+  }
+}
+
+// Подписка на изменение состояния авторизации
 export const onAuthChange = (callback) => {
   return onAuthStateChanged(auth, callback)
 }
 
-// Получение понятного сообщения об ошибке
+// Сообщения об ошибках на русском
 export const getAuthErrorMessage = (errorCode) => {
-  console.log('Error code:', errorCode)
-  const errors = {
-    'auth/wrong-password': 'Неверный пароль',
-    'auth/user-not-found': 'Аккаунт не найден. Необходимо зарегистрироваться',
-    'auth/invalid-credential': 'Неверный email или пароль',
-    'auth/email-already-in-use': 'Этот email уже зарегистрирован',
-    'auth/invalid-email': 'Неверный формат email',
-    'auth/weak-password': 'Пароль должен содержать не менее 6 символов',
-    'auth/popup-closed-by-user': 'Окно авторизации закрыто',
-    'auth/network-request-failed': 'Ошибка сети. Проверьте подключение',
-    'auth/too-many-requests': 'Слишком много попыток. Попробуйте позже',
-    'auth/user-disabled': 'Аккаунт заблокирован',
-    'auth/popup-blocked': 'Всплывающее окно заблокировано браузером',
-    'auth/cancelled-popup-request': 'Предыдущий запрос ещё не завершён',
-    'auth/unauthorized-domain': 'Домен не авторизован в Firebase',
-    'auth/api-key-not-valid': 'Неверный API ключ Firebase',
-    'auth/operation-not-allowed': 'Операция не разрешена'
+  const messages = {
+    'auth/email-already-in-use': 'Этот email уже зарегистрирован. Войдите или используйте другой email.',
+    'auth/invalid-email': 'Неверный формат email.',
+    'auth/operation-not-allowed': 'Регистрация отключена. Обратитесь к администратору.',
+    'auth/weak-password': 'Пароль должен содержать не менее 6 символов.',
+    'auth/user-disabled': 'Аккаунт заблокирован.',
+    'auth/user-not-found': 'Пользователь с таким email не найден. Проверьте адрес или зарегистрируйтесь.',
+    'auth/wrong-password': 'Неверный пароль. Попробуйте ещё раз или восстановите пароль.',
+    'auth/invalid-credential': 'Неверный email или пароль.',
+    'auth/too-many-requests': 'Слишком много попыток входа. Попробуйте позже.',
+    'auth/network-request-failed': 'Ошибка сети. Проверьте подключение к интернету.',
+    'auth/popup-closed-by-user': 'Окно авторизации закрыто.',
+    'auth/cancelled-popup-request': 'Запрос авторизации отменён.',
+    'auth/popup-blocked': 'Всплывающее окно заблокировано браузером.',
+    'auth/account-exists-with-different-credential': 'Этот email уже используется с другим способом входа.',
+    'auth/requires-recent-login': 'Требуется повторный вход для выполнения операции.'
   }
-  return errors[errorCode] || 'Произошла ошибка. Попробуйте ещё раз'
+  
+  return messages[errorCode] || 'Произошла ошибка. Попробуйте ещё раз.'
 }
+
+export { auth, db }

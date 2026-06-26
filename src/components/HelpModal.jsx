@@ -9,7 +9,7 @@ export default function HelpModal({ isOpen, onClose }) {
         {/* Заголовок — компактный */}
         <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
           <h2 className="text-lg md:text-xl font-bold text-gray-800 truncate pr-2">
-             еЖЕдневНЯ - Мои задачи
+             еЖЕдневНиЯ - Мои задачи
           </h2>
           <button
             onClick={onClose}
