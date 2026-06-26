@@ -54,13 +54,15 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
             }`}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* ПЕРВАЯ СТРОКА: чекбокс + название + время + действия */}
             <div className="flex items-start gap-2">
+              {/* Чекбокс */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onToggleStatus(task.id)
                 }}
-                className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                   isCompleted 
                     ? 'bg-green-500 border-green-500' 
                     : 'border-gray-300 hover:border-primary'
@@ -73,121 +75,123 @@ export default function TaskList({ tasks, onEdit, onDelete, onCopy, onToggleStat
                 )}
               </button>
 
+              {/* Название + время + действия */}
               <div className="flex-1 min-w-0">
-                {/* Название с inline статусом и приоритетом */}
-                <div className="flex items-start gap-2">
+                <div className="flex items-start justify-between gap-2">
                   <h3 className={`font-medium text-gray-800 break-words text-sm md:text-base flex-1 ${isCompleted ? 'line-through' : ''}`}>
                     {task.title}
+                  </h3>
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     {task.time && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded ml-2 inline-block align-middle">
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded mr-1">
                         🕐 {task.time}
                       </span>
                     )}
-                    {/* Статус inline */}
-                    <span className="inline-block relative ml-2 align-middle">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
-                          setOpenPriorityMenu(null)
-                        }}
-                        className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
-                      >
-                        {status.label}
-                      </button>
-                      {openStatusMenu === task.id && (
-                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
-                          {STATUS_OPTIONS.map(option => (
-                            <button
-                              key={option.value}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onUpdateField(task.id, 'status', option.value)
-                                setOpenStatusMenu(null)
-                              }}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                                task.status === option.value ? 'bg-gray-100 font-medium' : ''
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </span>
-                    {/* Приоритет inline */}
-                    <span className="inline-block relative ml-2 align-middle">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
-                          setOpenStatusMenu(null)
-                        }}
-                        className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
-                      >
-                        {priority.label}
-                      </button>
-                      {openPriorityMenu === task.id && (
-                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
-                          {PRIORITY_OPTIONS.map(option => (
-                            <button
-                              key={option.value}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onUpdateField(task.id, 'priority', option.value)
-                                setOpenPriorityMenu(null)
-                              }}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                                task.priority === option.value ? 'bg-gray-100 font-medium' : ''
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </span>
-                  </h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onCopy(task)
+                      }}
+                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Копировать"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(task)
+                      }}
+                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Редактировать"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(task.id)
+                      }}
+                      className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Удалить"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-0.5 flex-shrink-0">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCopy(task)
-                  }}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Копировать"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onEdit(task)
-                  }}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                  title="Редактировать"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(task.id)
-                  }}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Удалить"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {/* ВТОРАЯ СТРОКА: статус + приоритет (закреплены под действиями) */}
+                <div className="flex flex-wrap gap-1.5 items-center mt-1">
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenStatusMenu(openStatusMenu === task.id ? null : task.id)
+                        setOpenPriorityMenu(null)
+                      }}
+                      className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
+                    >
+                      {status.label}
+                    </button>
+                    {openStatusMenu === task.id && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
+                        {STATUS_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onUpdateField(task.id, 'status', option.value)
+                              setOpenStatusMenu(null)
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                              task.status === option.value ? 'bg-gray-100 font-medium' : ''
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenPriorityMenu(openPriorityMenu === task.id ? null : task.id)
+                        setOpenStatusMenu(null)
+                      }}
+                      className="px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-700"
+                    >
+                      {priority.label}
+                    </button>
+                    {openPriorityMenu === task.id && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-max">
+                        {PRIORITY_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onUpdateField(task.id, 'priority', option.value)
+                              setOpenPriorityMenu(null)
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                              task.priority === option.value ? 'bg-gray-100 font-medium' : ''
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

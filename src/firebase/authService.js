@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app'
+import { initializeApp, getApps, getApp } from 'firebase/app'
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -25,8 +25,8 @@ const firebaseConfig = {
   measurementId: "G-CEW9PBCF2G"
 }
 
-// Инициализация Firebase
-const app = initializeApp(firebaseConfig)
+// Инициализация Firebase — ПРОВЕРКА НА ДУБЛИРОВАНИЕ
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 const auth = getAuth(app)
 const db = getFirestore(app)
 const googleProvider = new GoogleAuthProvider()
@@ -67,7 +67,7 @@ export const signIn = async (email, password) => {
     try {
       await setDoc(doc(db, 'users', user.uid), {
         lastLogin: new Date().toISOString()
-      }, { merge: true }) // merge: true — не перезаписывает существующие поля
+      }, { merge: true })
     } catch (firestoreError) {
       console.log('Firestore update skipped:', firestoreError)
     }
@@ -90,7 +90,6 @@ export const signInWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider)
     const user = result.user
     
-    // Сохраняем/обновляем профиль в Firestore
     try {
       await setDoc(doc(db, 'users', user.uid), {
         displayName: user.displayName,
@@ -115,7 +114,6 @@ export const checkGoogleRedirectResult = async () => {
   try {
     const result = await getRedirectResult(auth)
     if (result && result.user) {
-      // Сохраняем в Firestore
       try {
         await setDoc(doc(db, 'users', result.user.uid), {
           displayName: result.user.displayName,
