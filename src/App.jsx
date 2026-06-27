@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { onAuthChange, logOut } from './firebase/authService'
 import { subscribeToTasks, addTask, updateTask, deleteTask, exportToCSV } from './services/taskService'
+import { useTaskReminders } from './hooks/useTaskReminders'
 import Auth from './components/Auth'
 import TaskList from './components/TaskList'
 import TaskForm from './components/TaskForm'
@@ -17,6 +18,8 @@ function App() {
   const [editingTask, setEditingTask] = useState(null)
   const [pendingTask, setPendingTask] = useState(null)
   const [showHelp, setShowHelp] = useState(false)
+
+  useTaskReminders(user)
 
   useEffect(() => {
     const unsubscribe = onAuthChange((currentUser) => {
@@ -58,7 +61,7 @@ function App() {
       setEditingTask(null)
     } catch (error) {
       console.error('Error saving task:', error)
-      alert('Ошибка при сохранении задачи')
+      alert('Ошибка при сохранении задачи: ' + error.message)
     }
   }
 
@@ -157,7 +160,6 @@ function App() {
     }
   }
 
-  // Возврат к сегодняшней дате
   const handleGoToToday = () => {
     setSelectedDate(new Date().toISOString().split('T')[0])
   }
@@ -227,7 +229,7 @@ function App() {
         </div>
 
         <div className="container mx-auto px-3 py-3 max-w-2xl">
-          {/* Заголовок — компактный */}
+          {/* Заголовок — переименован */}
           <div className="text-center mb-3">
             <h1 className="text-lg md:text-xl font-bold text-gray-800 whitespace-nowrap">
               еЖЕдневНиЯ - Мои задачи
@@ -235,14 +237,13 @@ function App() {
             <p className="text-xs text-gray-600">Организуйте свой день эффективно</p>
           </div>
 
-          {/* Дата (2/3) + кнопки Добавить/Экспорт (1/3) */}
+          {/* Дата + кнопки */}
           <div className="flex gap-2 mb-2">
             <div className="flex-1">
               <DateSelector 
                 selectedDate={selectedDate} 
                 onDateChange={setSelectedDate} 
               />
-              {/* Ссылка "Вернуться к сегодня" */}
               {!isToday && (
                 <button
                   onClick={handleGoToToday}

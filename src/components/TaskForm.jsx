@@ -26,6 +26,10 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   
   const [recState, setRecState] = useState('idle')
   const [listeningField, setListeningField] = useState(null)
+  
+  // Напоминания (максимум 2)
+  const [reminders, setReminders] = useState([])
+  const [newReminderTime, setNewReminderTime] = useState('')
 
   const listeningFieldRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -39,8 +43,20 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       setTime(task.time || '')
       setStatus(task.status || 'new')
       setPriority(task.priority || 'medium')
+      setReminders(task.reminders || [])
+    } else {
+      setDate(currentDate)
+      setReminders([])
     }
   }, [task, currentDate])
+
+  // Если время очищено — очищаем напоминания
+  useEffect(() => {
+    if (!time) {
+      setReminders([])
+      setNewReminderTime('')
+    }
+  }, [time])
 
   useEffect(() => {
     return () => {
@@ -50,6 +66,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }, [])
 
+  // === ГОЛОСОВОЙ ВВОД ===
   const startVoiceInput = (field) => {
     if (recState === 'listening' && listeningFieldRef.current === field) {
       setRecState('stopping')
@@ -135,6 +152,19 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     }
   }
 
+  // === НАПОМИНАНИЯ ===
+  const addReminder = () => {
+    if (newReminderTime && reminders.length < 2 && !reminders.includes(newReminderTime)) {
+      setReminders([...reminders, newReminderTime].sort())
+      setNewReminderTime('')
+    }
+  }
+
+  const removeReminder = (timeToRemove) => {
+    setReminders(reminders.filter(t => t !== timeToRemove))
+  }
+
+  // === ВАЛИДАЦИЯ И СОХРАНЕНИЕ ===
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (recState === 'listening' || recState === 'starting') {
@@ -188,6 +218,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       time: time || null,
       status,
       priority,
+      reminders: reminders.length > 0 ? reminders : null,
       userId
     }
 
@@ -199,7 +230,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       await onSave(taskData)
     } catch (error) {
       console.error('Ошибка сохранения:', error)
-      alert('Ошибка при сохранении.')
+      alert('Ошибка при сохранении: ' + error.message)
     } finally {
       setIsSaving(false)
     }
@@ -261,7 +292,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-4 md:p-6 shadow-md mb-4">
       <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-3">
-        {task ? '✏️ Редактировать задачу' : '➕ Новая задача'}
+        {task ? '️ Редактировать задачу' : '➕ Новая задача'}
       </h2>
 
       {/* Название */}
@@ -310,11 +341,11 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </p>
       </div>
 
-      {/* Дата и Время на одной строке */}
-      <div className="mb-3 grid grid-cols-2 gap-2">
+      {/* Дата, Время и Напоминания на одной строке */}
+      <div className="mb-3 grid grid-cols-1 md:grid-cols-3 gap-2">
         <div>
           <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-             Дата
+            📅 Дата
           </label>
           <input
             type="date"
@@ -344,7 +375,54 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             <p className="text-red-500 text-xs mt-1">{timeError}</p>
           )}
         </div>
+
+        {/* Напоминание — показывается только если есть время */}
+        {time && (
+          <div>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
+              🔔 Напомнить
+            </label>
+            <div className="flex gap-1">
+              <input
+                type="time"
+                value={newReminderTime}
+                onChange={(e) => setNewReminderTime(e.target.value)}
+                className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                disabled={reminders.length >= 2}
+              />
+              <button
+                type="button"
+                onClick={addReminder}
+                disabled={!newReminderTime || reminders.length >= 2}
+                className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 disabled:opacity-50 font-medium text-sm"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Список напоминаний (только если есть время и напоминания) */}
+      {time && reminders.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {reminders.map((reminderTime, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm"
+            >
+              🔔 {reminderTime}
+              <button
+                type="button"
+                onClick={() => removeReminder(reminderTime)}
+                className="text-blue-500 hover:text-red-500 ml-1"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Статус и Приоритет на одной строке */}
       <div className="mb-4 grid grid-cols-2 gap-2">

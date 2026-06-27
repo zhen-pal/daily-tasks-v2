@@ -6,7 +6,6 @@ export default function HelpModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-        {/* Заголовок — компактный */}
         <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
           <h2 className="text-lg md:text-xl font-bold text-gray-800 truncate pr-2">
              еЖЕдневНиЯ - Мои задачи
@@ -19,7 +18,6 @@ export default function HelpModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Контент — уменьшенные отступы */}
         <div className="overflow-y-auto p-4 space-y-4">
           <section>
             <h3 className="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
@@ -34,7 +32,7 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
-               Начало работы
+              🚀 Начало работы
             </h3>
             <div className="space-y-3">
               <div>
@@ -61,6 +59,7 @@ export default function HelpModal({ isOpen, onClose }) {
                   <li><strong>Приоритет</strong> — 🔴 Высокий, 🟡 Средний, 🟢 Низкий</li>
                   <li><strong>Статус</strong> — 🆕 Новое, ️ В работе, ⏸️ На паузе, ✅ Выполнено</li>
                   <li><strong>Описание</strong> — подробности (до 500 символов)</li>
+                  <li><strong>Напоминания</strong> — до 2 напоминаний (появляются только если указано время)</li>
                 </ul>
               </div>
             </div>
@@ -99,6 +98,45 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
+               Напоминания о задачах
+            </h3>
+            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded space-y-2">
+              <p className="text-gray-700 text-sm">
+                <strong>Как добавить напоминание:</strong>
+              </p>
+              <ol className="list-decimal list-inside text-gray-600 ml-2 text-sm space-y-1">
+                <li>Заполните поле <strong>«Время»</strong> — только после этого появится поле «Напомнить»</li>
+                <li>Выберите время напоминания и нажмите <strong>«+»</strong></li>
+                <li>Можно добавить до <strong>2 напоминаний</strong> для одной задачи</li>
+                <li>Если очистить поле «Время» — все напоминания удалятся автоматически</li>
+              </ol>
+              
+              <div className="mt-3 p-2 bg-white rounded">
+                <p className="text-gray-700 font-medium text-sm mb-1">
+                  ⚠️ Важно для работы уведомлений:
+                </p>
+                <ul className="list-disc list-inside text-gray-600 ml-2 text-sm space-y-1">
+                  <li><strong>Браузер должен быть открыт</strong> (можно в фоновой вкладке)</li>
+                  <li>Разрешите уведомления при первом запросе</li>
+                  <li>На мобильных: добавьте сайт на главный экран</li>
+                  <li>Проверьте, что в настройках браузера разрешены уведомления</li>
+                  <li>Уведомления работают только при открытой вкладке с приложением</li>
+                </ul>
+              </div>
+
+              <p className="text-gray-700 text-sm mt-2">
+                <strong>Как разрешить уведомления:</strong>
+              </p>
+              <ul className="list-disc list-inside text-gray-600 ml-2 text-sm space-y-1">
+                <li><strong>Chrome/Edge:</strong> Нажмите на значок  слева от адреса сайта → "Настройки сайта" → "Уведомления" → "Разрешить"</li>
+                <li><strong>Яндекс.Браузер:</strong> Нажмите на значок 🔒 → "Разрешить уведомления"</li>
+                <li><strong>Safari:</strong> Настройки → Safari → Настройки сайтов → Уведомления → Разрешить</li>
+              </ul>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
               ⚡ Быстрые действия
             </h3>
             <p className="text-gray-600 mb-1 ml-2 text-sm"><strong>В списке задач:</strong></p>
@@ -114,7 +152,7 @@ export default function HelpModal({ isOpen, onClose }) {
 
           <section>
             <h3 className="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
-              📅 Перенос задачи
+               Перенос задачи
             </h3>
             <ol className="list-decimal list-inside text-gray-600 space-y-0.5 ml-2 text-sm">
               <li>Откройте задачу (✏️)</li>
