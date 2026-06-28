@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const STATUS_OPTIONS = [
   { value: 'new', label: '🆕 Новое' },
-  { value: 'in-progress', label: '️⚙️ В работе' },
+  { value: 'in-progress', label: '⚙️ В работе' },
   { value: 'paused', label: '⏸️ На паузе' },
   { value: 'completed', label: '✅ Выполнено' }
 ]
@@ -23,18 +23,18 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   const [titleError, setTitleError] = useState('')
   const [timeError, setTimeError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  
   const [recState, setRecState] = useState('idle')
   const [listeningField, setListeningField] = useState(null)
   
-  // Напоминания (максимум 2)
+  // 🔔 НАПОМИНАНИЯ (максимум 2)
   const [reminders, setReminders] = useState([])
   const [newReminderTime, setNewReminderTime] = useState('')
-
+  
   const listeningFieldRef = useRef(null)
   const recognitionRef = useRef(null)
   const pendingFieldRef = useRef(null)
 
+  // Загрузка данных задачи
   useEffect(() => {
     if (task) {
       setTitle(task.title || '')
@@ -43,7 +43,16 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       setTime(task.time || '')
       setStatus(task.status || 'new')
       setPriority(task.priority || 'medium')
-      setReminders(task.reminders || [])
+      
+      // 🔔 ЗАГРУЖАЕМ НАПОМИНАНИЯ ИЗ ЗАДАЧИ
+      const taskReminders = task.reminders || []
+      setReminders(taskReminders)
+      
+      console.log('[TaskForm] Загружена задача:', {
+        id: task.id,
+        time: task.time,
+        reminders: taskReminders
+      })
     } else {
       setDate(currentDate)
       setReminders([])
@@ -75,7 +84,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       }
       return
     }
-
+    
     if (recState === 'listening' && listeningFieldRef.current !== field) {
       setRecState('stopping')
       if (recognitionRef.current) {
@@ -164,7 +173,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     setReminders(reminders.filter(t => t !== timeToRemove))
   }
 
-  // === ВАЛИДАЦИЯ И СОХРАНЕНИЕ ===
+  // === СОХРАНЕНИЕ ===
   const stopRecordingIfNeeded = () => {
     return new Promise((resolve) => {
       if (recState === 'listening' || recState === 'starting') {
@@ -193,9 +202,13 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
     e.preventDefault()
     setTitleError('')
     setTimeError('')
+    
+    if (isSaving) {
+      console.log('[TaskForm] Уже идёт сохранение, пропускаем')
+      return
+    }
 
-    if (isSaving) return
-
+    console.log('[TaskForm] Начинаем сохранение...')
     await stopRecordingIfNeeded()
 
     if (!title.trim()) {
@@ -218,6 +231,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       time: time || null,
       status,
       priority,
+      // 🔔 СОХРАНЯЕМ НАПОМИНАНИЯ
       reminders: reminders.length > 0 ? reminders : null,
       userId
     }
@@ -226,20 +240,23 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       taskData.dateChanged = true
     }
 
+    console.log('[TaskForm] Сохраняем задачу:', taskData)
+
     try {
       await onSave(taskData)
+      console.log('[TaskForm] Задача успешно сохранена')
     } catch (error) {
-      console.error('Ошибка сохранения:', error)
+      console.error('[TaskForm] Ошибка сохранения:', error)
       alert('Ошибка при сохранении: ' + error.message)
     } finally {
       setIsSaving(false)
+      console.log('[TaskForm] Сохранение завершено')
     }
   }
 
   const handleTimeChange = (e) => {
     let value = e.target.value.replace(/\D/g, '')
     if (value.length > 4) value = value.slice(0, 4)
-    
     if (value.length >= 2) {
       let hours = value.slice(0, 2)
       let minutes = value.slice(2, 4)
@@ -247,7 +264,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
       if (minutes.length === 2 && parseInt(minutes) > 59) minutes = '59'
       value = hours + (minutes ? ':' + minutes : '')
     }
-    
+
     setTime(value)
     setTimeError('')
   }
@@ -292,7 +309,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-4 md:p-6 shadow-md mb-4">
       <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-3">
-        {task ? '️ Редактировать задачу' : '➕ Новая задача'}
+        {task ? '✏️ Редактировать задачу' : '➕ Новая задача'}
       </h2>
 
       {/* Название */}
@@ -341,7 +358,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </p>
       </div>
 
-      {/* Дата, Время и Напоминания на одной строке */}
+      {/* Дата, Время и Напоминания */}
       <div className="mb-3 grid grid-cols-1 md:grid-cols-3 gap-2">
         <div>
           <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
@@ -376,7 +393,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           )}
         </div>
 
-        {/* Напоминание — показывается только если есть время */}
+        {/* Напоминание — только если есть время */}
         {time && (
           <div>
             <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
@@ -403,8 +420,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         )}
       </div>
 
-      {/* Список напоминаний (только если есть время и напоминания) */}
-      {time && reminders.length > 0 && (
+      {/* Список напоминаний — ПОКАЗЫВАЕМ ВСЕГДА ЕСЛИ ЕСТЬ */}
+      {reminders.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
           {reminders.map((reminderTime, index) => (
             <span
@@ -416,6 +433,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
                 type="button"
                 onClick={() => removeReminder(reminderTime)}
                 className="text-blue-500 hover:text-red-500 ml-1"
+                disabled={isSaving}
               >
                 ×
               </button>
@@ -424,7 +442,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </div>
       )}
 
-      {/* Статус и Приоритет на одной строке */}
+      {/* Статус и Приоритет */}
       <div className="mb-4 grid grid-cols-2 gap-2">
         <div>
           <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
@@ -461,7 +479,7 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
         </div>
       </div>
 
-      {/* Кнопки только с иконками */}
+      {/* Кнопки */}
       <div className="flex gap-2">
         <button
           type="submit"
@@ -473,9 +491,9 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
           ) : (
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
             </svg>
           )}
         </button>
@@ -487,8 +505,8 @@ export default function TaskForm({ task, currentDate, userId, onSave, onCancel }
           title="Отмена"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
       </div>
