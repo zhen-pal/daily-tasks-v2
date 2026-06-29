@@ -7,14 +7,14 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
-  getRedirectResult,
   signInWithRedirect,
+  getRedirectResult,
   updateProfile,
   sendPasswordResetEmail
 } from 'firebase/auth'
-import { getFirestore, doc, setDoc } from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore'
 
-// Конфигурация Firebase (замените на ваши реальные значения!)
+// Конфигурация Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDbpF_zZHTe3vTJGqBqy-yGXtgAApa0ETs",
   authDomain: "zh-daily-tasks-app.firebaseapp.com",
@@ -25,29 +25,20 @@ const firebaseConfig = {
   measurementId: "G-CEW9PBCF2G"
 }
 
-// Инициализация Firebase — ПРОВЕРКА НА ДУБЛИРОВАНИЕ
+// Инициализация Firebase — проверка на дублирование
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 const auth = getAuth(app)
 const db = getFirestore(app)
 const googleProvider = new GoogleAuthProvider()
 
-// Регистрация с сохранением имени в Authentication И Firestore
+// Регистрация с сохранением имени
 export const signUp = async (email, password, name) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
     
-    // 1. Сохраняем имя в Authentication
     await updateProfile(user, {
       displayName: name
-    })
-    
-    // 2. Сохраняем профиль пользователя в Firestore
-    await setDoc(doc(db, 'users', user.uid), {
-      displayName: name,
-      email: email,
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString()
     })
     
     return { success: true, user }
@@ -61,48 +52,31 @@ export const signUp = async (email, password, name) => {
 export const signIn = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    const user = userCredential.user
-    
-    // Обновляем lastLogin в Firestore
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        lastLogin: new Date().toISOString()
-      }, { merge: true })
-    } catch (firestoreError) {
-      console.log('Firestore update skipped:', firestoreError)
-    }
-    
-    return { success: true, user }
+    return { success: true, user: userCredential.user }
   } catch (error) {
     console.error('signIn error:', error)
     return { success: false, error: error.code }
   }
 }
 
+// Проверка мобильного устройства
+const isMobile = () => {
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+}
+
 // Вход через Google
 export const signInWithGoogle = async () => {
   try {
-    if (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    // На мобильных используем редирект (popup блокируется)
+    if (isMobile()) {
       await signInWithRedirect(auth, googleProvider)
+      // Возвращаемся сразу — результат будет обработан через getRedirectResult
       return { success: false, redirect: true }
     }
     
+    // На десктопе — popup
     const result = await signInWithPopup(auth, googleProvider)
-    const user = result.user
-    
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        lastLogin: new Date().toISOString(),
-        provider: 'google'
-      }, { merge: true })
-    } catch (firestoreError) {
-      console.log('Firestore update skipped:', firestoreError)
-    }
-    
-    return { success: true, user }
+    return { success: true, user: result.user }
   } catch (error) {
     console.error('signInWithGoogle error:', error)
     return { success: false, error: error.code }
@@ -114,18 +88,6 @@ export const checkGoogleRedirectResult = async () => {
   try {
     const result = await getRedirectResult(auth)
     if (result && result.user) {
-      try {
-        await setDoc(doc(db, 'users', result.user.uid), {
-          displayName: result.user.displayName,
-          email: result.user.email,
-          photoURL: result.user.photoURL,
-          lastLogin: new Date().toISOString(),
-          provider: 'google'
-        }, { merge: true })
-      } catch (firestoreError) {
-        console.log('Firestore update skipped:', firestoreError)
-      }
-      
       return { success: true, user: result.user }
     }
     return { success: false }

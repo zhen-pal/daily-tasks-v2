@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { signIn, signUp, resetPassword, signInWithGoogle, checkGoogleRedirectResult, getAuthErrorMessage } from '../firebase/authService'
+import { signIn, signUp, signInWithGoogle, checkGoogleRedirectResult, resetPassword, getAuthErrorMessage } from '../firebase/authService'
 
 export default function Auth({ onAuth }) {
   const [isLogin, setIsLogin] = useState(true)
@@ -8,16 +8,19 @@ export default function Auth({ onAuth }) {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showReset, setShowReset] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSent, setResetSent] = useState(false)
 
-  // Обработка результата редиректа (для мобильных)
+  // Проверяем результат редиректа при загрузке (для мобильных)
   useEffect(() => {
-    const handleRedirectResult = async () => {
+    const handleRedirect = async () => {
       const result = await checkGoogleRedirectResult()
       if (result.success && result.user) {
         onAuth(result.user)
       }
     }
-    handleRedirectResult()
+    handleRedirect()
   }, [onAuth])
 
   const handleSubmit = async (e) => {
@@ -44,6 +47,7 @@ export default function Auth({ onAuth }) {
         setError(getAuthErrorMessage(result.error))
       }
     } catch (err) {
+      console.error('Auth error:', err)
       setError('Произошла ошибка. Попробуйте ещё раз.')
     } finally {
       setLoading(false)
@@ -57,7 +61,7 @@ export default function Auth({ onAuth }) {
     try {
       const result = await signInWithGoogle()
       
-      // Если используется redirect (мобильные), не нужно ничего делать
+      // Если используется редирект (мобильные), не нужно ничего делать
       if (result.redirect) {
         return
       }
@@ -75,18 +79,94 @@ export default function Auth({ onAuth }) {
     }
   }
 
-  const handleResetPassword = async () => {
-    if (!email) {
-      setError('Введите email для восстановления пароля')
+  const handleResetPassword = async (e) => {
+    e.preventDefault()
+    setError('')
+    
+    if (!resetEmail) {
+      setError('Введите email')
       return
     }
 
     try {
-      await resetPassword(email)
-      alert('Письмо для восстановления пароля отправлено на ' + email)
+      const result = await resetPassword(resetEmail)
+      if (result.success) {
+        setResetSent(true)
+      }
     } catch (err) {
+      console.error('Reset password error:', err)
       setError('Ошибка отправки письма. Проверьте email.')
     }
+  }
+
+  if (showReset) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
+            Восстановление пароля
+          </h2>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
+
+          {resetSent ? (
+            <div className="text-center">
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                Письмо для восстановления пароля отправлено на {resetEmail}
+              </div>
+              <button
+                onClick={() => {
+                  setShowReset(false)
+                  setResetSent(false)
+                  setResetEmail('')
+                }}
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              >
+                Вернуться к входу
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              >
+                Отправить письмо
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReset(false)
+                  setResetEmail('')
+                }}
+                className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Отмена
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -95,7 +175,9 @@ export default function Auth({ onAuth }) {
         <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
           📋 еЖЕдневНиЯ
         </h1>
-        <p className="text-center text-gray-600 mb-6">Организуйте свой день эффективно</p>
+        <p className="text-center text-gray-600 mb-6">
+          Организуйте свой день эффективно
+        </p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -183,7 +265,10 @@ export default function Auth({ onAuth }) {
 
           {isLogin && (
             <button
-              onClick={handleResetPassword}
+              onClick={() => {
+                setShowReset(true)
+                setResetEmail(email)
+              }}
               className="w-full text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
             >
               Забыли пароль?
